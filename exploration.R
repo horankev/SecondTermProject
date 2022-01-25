@@ -142,15 +142,15 @@ sel_vars_2019_sep_scot <- sel_vars_2019 %>%
   mutate(scotland = ifelse(country == "Scotland", 1, 0))
 
 # OLS for conservative %, labour %, libdem %
-reg_cons <- lm(con_19 ~ age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
+reg_cons <- lm(con_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
           ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
 summary(reg_cons)
 
-reg_lab <- lm(lab_19 ~ age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
+reg_lab <- lm(lab_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
                  ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
 summary(reg_lab)
 
-reg_ld <- lm(ld_19 ~ age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
+reg_ld <- lm(ld_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
                 ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
 summary(reg_ld)
 
@@ -393,3 +393,4 @@ p_retired <-
 
 ##
 p_cars_mean + p_deprived_mean + p_health_bad_both + p_age_18_44 + p_qual_mean + p_retired + plot_layout(ncol=3)
+
