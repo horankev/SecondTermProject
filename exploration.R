@@ -3,6 +3,7 @@ library(sf)
 library(parlitools)
 library(GGally)
 library(patchwork)
+library(lme4)
 
 rm(list=ls())
 
@@ -112,16 +113,20 @@ comb2019$qual_apprentice <- comb2019$qual_apprentice %>%
 
 # produce a census with only the variables desired (and pano for joining)
 census_reduced <- comb2019 %>%
-  mutate(age_18_29 = age_18_to_19 + age_20_to_24 + age_25_to_29,
-         age_30_59 = age_30_to_44 + age_45_to_59,
-         age_60_over = age_60_to_64 + age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+  mutate(age_18_44 = age_18_to_19 + age_20_to_24 + age_25_to_29 + age_30_to_44,
+         age_45_64 = age_45_to_59 + age_60_to_64,
          cars_mean = (cars_one + 2*cars_two + 3*cars_three + 4*cars_four)/100,
          qual_mean = (qual_level_1 + 2*qual_level_2 + 3*qual_level_3 + 4*qual_level_4 + 5*degree)/100,
-         health_mean = (health_bad + 2*health_fair + 3*health_good + 4*health_very_good)/100,
-         deprived_mean = (deprived_1 + 2*deprived_2 + 3*deprived_3 + 4*deprived_4)/100) %>% 
-  select(age_18_29, age_30_59, age_60_over, cars_mean, qual_mean, health_mean, deprived_mean, house_owned, household_one_person, 
-         ethnicity_white, born_uk, christian, no_religion, unemployed, retired, pano) %>% 
+         health_bad_both = (health_very_bad + health_bad),
+         health_good_both = (health_good + health_very_good),
+         deprived_mean = (deprived_1 + 2*deprived_2 + 3*deprived_3 + 4*deprived_4)/100,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other) %>% 
+  select(age_18_44, age_45_64, cars_mean, qual_mean, health_bad_both, health_good_both, deprived_mean, house_owned, household_one_person, 
+         ethnicity_white, born_uk, christian, no_religion, unemployed, retired, born_elsewhere, pano) %>% 
   st_drop_geometry()
+
+# pairs plot without pano (only needed for merging)
+ggpairs(census_reduced[,1:ncol(census_reduced)-1])
 
 # join to election data, hex, and part-colour datasets, as before
 sel_vars_2019 <- left_join(elect2019, census_reduced, by = "pano") %>% 
@@ -130,22 +135,261 @@ sel_vars_2019 <- left_join(elect2019, census_reduced, by = "pano") %>%
   select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
   st_as_sf()
 
-# pairs plot without pano (only needed for merging)
-ggpairs(census_reduced[,1:15])
+#################################
+
+# make dataset with binary Scotland column
+sel_vars_2019_sep_scot <- sel_vars_2019 %>% 
+  mutate(scotland = ifelse(country == "Scotland", 1, 0))
+
+# OLS for conservative %, labour %, libdem %
+reg_cons <- lm(con_19 ~ age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
+          ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
+summary(reg_cons)
+
+reg_lab <- lm(lab_19 ~ age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
+                 ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
+summary(reg_lab)
+
+reg_ld <- lm(ld_19 ~ age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
+                ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
+summary(reg_ld)
+
+
 
 #################################
 
-
-#################################
-ggplot(comb2019) +
-  geom_sf(aes(fill=ld_19)) +
-  coord_sf(datum=NA) + 
-  scale_fill_gradient(low="white",high="red") + 
-  theme_minimal() + facet_wrap(~country)
-
-ggplot(comb2019) + 
-  geom_point(aes(y=lab_19,x=retired,colour=country)) + 
-  geom_smooth(aes(y=lab_19,x=retired)) + 
-  theme_minimal() + facet_wrap(~winner_19)
+# trying multilevel model with lme4 from lmer...
+# for different regions on conservative % vote
+# first, using cars_mean, then deprived_mean, then health_bad_both, then age_18_44, then qual_mean, then retired
 
 
+######
+# from: https://benwhalley.github.io/just-enough-r/extending-traditional-rm-anova.html
+slope.model <- lmer(con_19 ~ cars_mean + (1|region),  data=sel_vars_2019_sep_scot)
+
+random.slope.model <- lmer(con_19 ~ cars_mean + (cars_mean | region), data=sel_vars_2019_sep_scot)
+summary(random.slope.model)
+
+lmerTest::ranova(random.slope.model)
+
+a <-  data_frame(
+  model = "random.slope",
+  fitted = predict(random.slope.model),
+  residual = residuals(random.slope.model))
+b <- data_frame(
+  model = "random.intercept",
+  fitted = predict(slope.model),
+  residual = residuals(slope.model))
+residual.fitted.data <- bind_rows(a,b)
+
+residual.fitted.data %>%
+  ggplot(aes(fitted, residual)) +
+  geom_point() +
+  geom_smooth(se=F) +
+  facet_wrap(~model)
+
+p_cars_mean <-
+  ranef(random.slope.model)$region %>%
+  # implicitly convert them to a dataframe and add a column with the subject number
+  rownames_to_column(var="region") %>%
+  # plot the intercept and slobe values with geom_abline()
+  ggplot(aes()) +
+  geom_abline(aes(intercept=`(Intercept)`, slope=cars_mean, color=region)) +
+  # add axis label
+  xlab("cars_mean") + ylab("Residual RT") +
+  # set the scale of the plot to something sensible
+  scale_x_continuous(limits=c(02,1.8), expand=c(0,0)) +
+  scale_y_continuous(limits=c(-100, 100))
+
+##
+
+slope.model <- lmer(con_19 ~ deprived_mean + (1|region),  data=sel_vars_2019_sep_scot)
+
+random.slope.model <- lmer(con_19 ~ deprived_mean + (deprived_mean | region), data=sel_vars_2019_sep_scot)
+summary(random.slope.model)
+
+lmerTest::ranova(random.slope.model)
+
+a <-  data_frame(
+  model = "random.slope",
+  fitted = predict(random.slope.model),
+  residual = residuals(random.slope.model))
+b <- data_frame(
+  model = "random.intercept",
+  fitted = predict(slope.model),
+  residual = residuals(slope.model))
+residual.fitted.data <- bind_rows(a,b)
+
+residual.fitted.data %>%
+  ggplot(aes(fitted, residual)) +
+  geom_point() +
+  geom_smooth(se=F) +
+  facet_wrap(~model)
+
+p_deprived_mean <-
+  ranef(random.slope.model)$region %>%
+  # implicitly convert them to a dataframe and add a column with the subject number
+  rownames_to_column(var="region") %>%
+  # plot the intercept and slobe values with geom_abline()
+  ggplot(aes()) +
+  geom_abline(aes(intercept=`(Intercept)`, slope=deprived_mean, color=region)) +
+  # add axis label
+  xlab("deprived_mean") + ylab("Residual RT") +
+  # set the scale of the plot to something sensible
+  scale_x_continuous(limits=c(0.5,1.4), expand=c(0,0)) +
+  scale_y_continuous(limits=c(-100, 100))
+
+##
+
+slope.model <- lmer(con_19 ~ health_bad_both + (1|region),  data=sel_vars_2019_sep_scot)
+
+random.slope.model <- lmer(con_19 ~ health_bad_both + (health_bad_both | region), data=sel_vars_2019_sep_scot)
+summary(random.slope.model)
+
+lmerTest::ranova(random.slope.model)
+
+a <-  data_frame(
+  model = "random.slope",
+  fitted = predict(random.slope.model),
+  residual = residuals(random.slope.model))
+b <- data_frame(
+  model = "random.intercept",
+  fitted = predict(slope.model),
+  residual = residuals(slope.model))
+residual.fitted.data <- bind_rows(a,b)
+
+residual.fitted.data %>%
+  ggplot(aes(fitted, residual)) +
+  geom_point() +
+  geom_smooth(se=F) +
+  facet_wrap(~model)
+
+p_health_bad_both <-
+  ranef(random.slope.model)$region %>%
+  # implicitly convert them to a dataframe and add a column with the subject number
+  rownames_to_column(var="region") %>%
+  # plot the intercept and slobe values with geom_abline()
+  ggplot(aes()) +
+  geom_abline(aes(intercept=`(Intercept)`, slope=health_bad_both, color=region)) +
+  # add axis label
+  xlab("health_bad_both") + ylab("Residual RT") +
+  # set the scale of the plot to something sensible
+  scale_x_continuous(limits=c(2.4,12), expand=c(0,0)) +
+  scale_y_continuous(limits=c(-100, 100))
+
+##
+
+slope.model <- lmer(con_19 ~ age_18_44 + (1|region),  data=sel_vars_2019_sep_scot)
+
+random.slope.model <- lmer(con_19 ~ age_18_44 + (age_18_44 | region), data=sel_vars_2019_sep_scot)
+summary(random.slope.model)
+
+lmerTest::ranova(random.slope.model)
+
+a <-  data_frame(
+  model = "random.slope",
+  fitted = predict(random.slope.model),
+  residual = residuals(random.slope.model))
+b <- data_frame(
+  model = "random.intercept",
+  fitted = predict(slope.model),
+  residual = residuals(slope.model))
+residual.fitted.data <- bind_rows(a,b)
+
+residual.fitted.data %>%
+  ggplot(aes(fitted, residual)) +
+  geom_point() +
+  geom_smooth(se=F) +
+  facet_wrap(~model)
+
+p_age_18_44 <-
+  ranef(random.slope.model)$region %>%
+  # implicitly convert them to a dataframe and add a column with the subject number
+  rownames_to_column(var="region") %>%
+  # plot the intercept and slobe values with geom_abline()
+  ggplot(aes()) +
+  geom_abline(aes(intercept=`(Intercept)`, slope=age_18_44, color=region)) +
+  # add axis label
+  xlab("age_18_44") + ylab("Residual RT") +
+  # set the scale of the plot to something sensible
+  scale_x_continuous(limits=c(2.4,12), expand=c(0,0)) +
+  scale_y_continuous(limits=c(-100, 100))
+
+##
+
+slope.model <- lmer(con_19 ~ qual_mean + (1|region),  data=sel_vars_2019_sep_scot)
+
+random.slope.model <- lmer(con_19 ~ qual_mean + (qual_mean | region), data=sel_vars_2019_sep_scot)
+summary(random.slope.model)
+
+lmerTest::ranova(random.slope.model)
+
+a <-  data_frame(
+  model = "random.slope",
+  fitted = predict(random.slope.model),
+  residual = residuals(random.slope.model))
+b <- data_frame(
+  model = "random.intercept",
+  fitted = predict(slope.model),
+  residual = residuals(slope.model))
+residual.fitted.data <- bind_rows(a,b)
+
+residual.fitted.data %>%
+  ggplot(aes(fitted, residual)) +
+  geom_point() +
+  geom_smooth(se=F) +
+  facet_wrap(~model)
+
+p_qual_mean <-
+  ranef(random.slope.model)$region %>%
+  # implicitly convert them to a dataframe and add a column with the subject number
+  rownames_to_column(var="region") %>%
+  # plot the intercept and slobe values with geom_abline()
+  ggplot(aes()) +
+  geom_abline(aes(intercept=`(Intercept)`, slope=qual_mean, color=region)) +
+  # add axis label
+  xlab("qual_mean") + ylab("Residual RT") +
+  # set the scale of the plot to something sensible
+  scale_x_continuous(limits=c(1.2,5.4), expand=c(0,0)) +
+  scale_y_continuous(limits=c(-100, 100))
+
+##
+
+slope.model <- lmer(con_19 ~ retired + (1|region),  data=sel_vars_2019_sep_scot)
+
+random.slope.model <- lmer(con_19 ~ retired + (retired | region), data=sel_vars_2019_sep_scot)
+summary(random.slope.model)
+
+lmerTest::ranova(random.slope.model)
+
+a <-  data_frame(
+  model = "random.slope",
+  fitted = predict(random.slope.model),
+  residual = residuals(random.slope.model))
+b <- data_frame(
+  model = "random.intercept",
+  fitted = predict(slope.model),
+  residual = residuals(slope.model))
+residual.fitted.data <- bind_rows(a,b)
+
+residual.fitted.data %>%
+  ggplot(aes(fitted, residual)) +
+  geom_point() +
+  geom_smooth(se=F) +
+  facet_wrap(~model)
+
+p_retired <-
+  ranef(random.slope.model)$region %>%
+  # implicitly convert them to a dataframe and add a column with the subject number
+  rownames_to_column(var="region") %>%
+  # plot the intercept and slobe values with geom_abline()
+  ggplot(aes()) +
+  geom_abline(aes(intercept=`(Intercept)`, slope=retired, color=region)) +
+  # add axis label
+  xlab("retired") + ylab("Residual RT") +
+  # set the scale of the plot to something sensible
+  scale_x_continuous(limits=c(4.2,26)) +
+  scale_y_continuous(limits=c(-100, 100))
+
+##
+p_cars_mean + p_deprived_mean + p_health_bad_both + p_age_18_44 + p_qual_mean + p_retired + plot_layout(ncol=3)
