@@ -148,11 +148,73 @@ summary(reg_ld)
 ```
 
 
+```{r}
+# PCA
 
+# calculate principal components
+PCAresults <- prcomp(census_reduced[,1:ncol(census_reduced)-1], scale. = TRUE)
+```
+```{r}
+# biplot coloured by country
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'country', size=1.5, loadings = TRUE, 
+         loadings.colour = 'blue', 
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=1),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank())
+```
 
+```{r}
+# biplot coloured by country, faceted by country
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'country', size=1.5, loadings = TRUE, 
+         loadings.colour = 'blue', 
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=1),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank()) + 
+  facet_wrap(~country)
+```
 
+```{r}
+# biplot coloured by winner
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=1, loadings = TRUE,
+         loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=2),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank())
+```
 
+```{r}
+# biplot coloured by winner, faceted by country
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=1, loadings = TRUE,
+         loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=2),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank()) + 
+  facet_wrap(~country)
+```
 
+```{r}
+# biplot coloured by winner, faceted by region
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=2, loadings = TRUE,
+         loadings.colour = 'black',
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=2),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank()) + 
+  facet_wrap(~region)
+```
+
+```{r}
+
+```
 
 
 
