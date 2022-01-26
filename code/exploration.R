@@ -5,6 +5,7 @@ library(GGally)
 library(patchwork)
 library(lme4)
 library(mgcv)
+library(ggfortify)
 
 rm(list=ls())
 
@@ -144,6 +145,91 @@ reg_ld <- lm(ld_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_none +
                unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
 summary(reg_ld)
 
+
+#################################
+
+# PCA
+
+# calculate principal components
+PCAresults <- prcomp(census_reduced[,1:ncol(census_reduced)-1], scale. = TRUE)
+# 
+# # reverse the signs
+# PCAresults$rotation <- -1*PCAresults$rotation
+# 
+# # display principal components
+# PCAresults$rotation
+# 
+# # reverse the signs of the scores
+# PCAresults$x <- -1*PCAresults$x
+# 
+# # display the first six scores
+# head(PCAresults$x)
+# 
+# # biplot
+# biplot(PCAresults, scale = 0)
+# 
+# # calculate total variance explained by each principal component
+# PCAresults$sdev^2 / sum(PCAresults$sdev^2)
+# 
+# # makescree plot
+# # calculate total variance explained by each principal component
+# var_explained = PCAresults$sdev^2 / sum(PCAresults$sdev^2)
+# 
+# # create scree plot
+# qplot(c(1:15), var_explained) + 
+#   geom_line() + 
+#   xlab("Principal Component") + 
+#   ylab("Variance Explained") +
+#   ggtitle("Scree Plot") +
+#   ylim(0, 1)
+
+# biplot coloured by country
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'country', size=2, loadings = TRUE, 
+         loadings.colour = 'blue', 
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=1),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank())
+
+# biplot coloured by country, faceted by country
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'country', size=2, loadings = TRUE, 
+         loadings.colour = 'blue', 
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=1),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank()) + 
+  facet_wrap(~country)
+
+# biplot coloured by winner
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=1, loadings = TRUE,
+         loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=2),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank())
+
+# biplot coloured by winner, faceted by country
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=1, loadings = TRUE,
+         loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=2),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank()) + 
+  facet_wrap(~country)
+
+# biplot coloured by winner, faceted by region
+autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=2, loadings = TRUE,
+         loadings.colour = 'black',
+         loadings.label = TRUE, loadings.label.size = 3) + 
+  theme(plot.background=element_blank(),
+        panel.background=element_rect(fill='transparent',color='black',size=2),
+        legend.text=element_text(hjust=1),
+        legend.key=element_blank()) + 
+  facet_wrap(~region)
 
 
 
