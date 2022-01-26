@@ -95,34 +95,17 @@ combined
 
 #################################
 
-# some test regressions...
-xxx <- lm(con_19~unemployed+degree+retired+christian+household_all_students+house_private_landlord, data=comb2019)
-summary(xxx)
-
-#################################
 
 # choose variables
 
 # extract the variables or combination variables which have been chosen...
-# these cols for three types of qualification have NA when should be zero (they add to 100% so zero seems correct)
-comb2019$degree <- comb2019$degree %>% 
-  replace(is.na(.), 0)
-comb2019$qual_other <- comb2019$qual_other %>% 
-  replace(is.na(.), 0)
-comb2019$qual_apprentice <- comb2019$qual_apprentice %>% 
-  replace(is.na(.), 0)
 
 # produce a census with only the variables desired (and pano for joining)
 census_reduced <- comb2019 %>%
   mutate(age_18_44 = age_18_to_19 + age_20_to_24 + age_25_to_29 + age_30_to_44,
-         age_45_64 = age_45_to_59 + age_60_to_64,
-         cars_mean = (cars_one + 2*cars_two + 3*cars_three + 4*cars_four)/100,
-         qual_mean = (qual_level_1 + 2*qual_level_2 + 3*qual_level_3 + 4*qual_level_4 + 5*degree)/100,
-         health_bad_both = (health_very_bad + health_bad),
-         health_good_both = (health_good + health_very_good),
-         deprived_mean = (deprived_1 + 2*deprived_2 + 3*deprived_3 + 4*deprived_4)/100,
+         age_45_64 = age_45_to_59 + age_60_to_64,health_bad_both = (health_very_bad + health_bad),
          born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other) %>% 
-  select(age_18_44, age_45_64, cars_mean, qual_mean, health_bad_both, health_good_both, deprived_mean, house_owned, household_one_person, 
+  select(age_18_44, age_45_64, cars_none, qual_none, health_bad_both, deprived_none, house_owned, household_one_person, 
          ethnicity_white, born_uk, christian, no_religion, unemployed, retired, born_elsewhere, pano) %>% 
   st_drop_geometry()
 
@@ -143,16 +126,22 @@ sel_vars_2019_sep_scot <- sel_vars_2019 %>%
   mutate(scotland = ifelse(country == "Scotland", 1, 0))
 
 # OLS for conservative %, labour %, libdem %
-reg_cons <- lm(con_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
-          ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
+reg_cons <- lm(con_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_none +
+                 qual_none + health_bad_both + deprived_none + house_owned +
+                 household_one_person + ethnicity_white + born_uk + christian +
+                 unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
 summary(reg_cons)
 
-reg_lab <- lm(lab_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
-                 ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
+reg_lab <- lm(lab_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_none +
+                qual_none + health_bad_both + deprived_none + house_owned +
+                household_one_person + ethnicity_white + born_uk + christian +
+                unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
 summary(reg_lab)
 
-reg_ld <- lm(ld_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_mean + qual_mean + health_bad_both + health_good_both + deprived_mean + house_owned + household_one_person + 
-                ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
+reg_ld <- lm(ld_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_none +
+               qual_none + health_bad_both + deprived_none + house_owned +
+               household_one_person + ethnicity_white + born_uk + christian +
+               unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
 summary(reg_ld)
 
 
