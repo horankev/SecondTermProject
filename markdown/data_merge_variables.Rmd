@@ -12,25 +12,37 @@ library(GGally)
 library(patchwork)
 library(lme4)
 library(mgcv)
+library(ggfortify)
+library(here)
+
+rm(list=ls())
+here()
 ```
 
 ```{r}
 # GET DATASETS
 elect2019 <- bes_2019 %>% 
-  filter(country != "Northern Ireland") # census dataset does not include NI
+  filter(country != "Northern Ireland")  # census dataset does not include NI
+saveRDS(elect2019, here("data", "elect2019.rds"))
 
 elect2017 <- bes_2017 %>% 
   filter(country != "Northern Ireland")
+saveRDS(elect2017, here("data", "elect2017.rds"))
 
 elect2015 <- bes_2015 %>%
   filter(country != "Northern Ireland")
+saveRDS(elect2015, here("data", "elect2015.rds"))
 
-census <- census_11
+census <- census_11 
+saveRDS(census, here("data", "census.rds"))
 
-hex <- west_hex_map %>%
+hex <- west_hex_map %>% 
   filter(region_name != "Northern Ireland")
+saveRDS(hex, here("data", "hex.rds"))
 
 party_colour <- party_colour
+saveRDS(party_colour, here("data", "party_colour.rds"))
+
 ```
 
 
@@ -39,7 +51,7 @@ party_colour <- party_colour
 
 # first make temporary reduced data-frames to make merging smoother...
 temp_census <- census  %>% 
-  select(-c("ons_const_id", "constituency_name", "country", "region", "constituency_type")) 
+  select(-c("ons_const_id", "constituency_name", "country", "region", "constituency_type"))
 # because different letter cases will disrupt the merging with elect2019
 temp_hex <- hex  %>% 
   select(-"constituency_name")
@@ -50,49 +62,69 @@ comb2019 <- left_join(elect2019, temp_census, by = "pano") %>%
   left_join(party_colour, by = c("winner_19" = "party_name")) %>% 
   select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
   st_as_sf()
+saveRDS(comb2019, here("data", "comb2019.rds"))
 
 comb2017 <- left_join(elect2017, temp_census, by = "pano") %>% 
   left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>%
   left_join(party_colour, by = c("winner_17" = "party_name")) %>% 
   st_as_sf()
+saveRDS(comb2017, here("data", "comb2017.rds"))
 
 comb2015 <- left_join(elect2015, temp_census, by = "pano") %>% 
   left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>% 
   left_join(party_colour, by = c("winner_15" = "party_name")) %>% 
   st_as_sf()
+saveRDS(comb2015, here("data", "comb2015.rds"))
+
+```
+
+```{r}
+
+# make colour and fill scales for future use
+
+# COLOUR and FILL scales for parites
+# only show parties which won seats in the legend by using unique
+mycolours_party <- party_colour$party_colour
+names(mycolours_party) <- party_colour$party_name
+
+colscale_party2019 <- scale_colour_manual(names(mycolours_party), values=mycolours_party, breaks=unique(comb2019$winner_19))
+colscale_party2017 <- scale_colour_manual(names(mycolours_party), values=mycolours_party, breaks=unique(comb2017$winner_17)) 
+colscale_party2015 <- scale_colour_manual(names(mycolours_party), values=mycolours_party, breaks=unique(comb2015$winner_15))
+
+fillscale_party2019 <- scale_fill_manual(names(mycolours_party), values=mycolours_party, breaks=unique(comb2019$winner_19))
+fillscale_party2017 <- scale_fill_manual(names(mycolours_party), values=mycolours_party, breaks=unique(comb2017$winner_17)) 
+fillscale_party2015 <- scale_fill_manual(names(mycolours_party), values=mycolours_party, breaks=unique(comb2015$winner_15))
+
+# COLOUR and FILL scales for countries
+mycolours_country <- c("red", "blue4", "#008142")
+names(mycolours_country) <- c("England", "Scotland", "Wales")
+
+colscale_country <- scale_colour_manual(names(mycolours_country), values=mycolours_country)
+fillscale_country <- scale_fill_manual(names(mycolours_country), values=mycolours_country)
 
 ```
 
 ```{r}
 # show results as hex maps
-
-# make a colour scale
-# only show parties which won seats in the legend by using unique
-mycolours <- party_colour$party_colour
-names(mycolours) <- party_colour$party_name
-
-colscale <- scale_fill_manual(names(mycolours), values=mycolours, breaks=unique(comb2019$winner_19))
 p2019 <- ggplot() + 
   geom_sf(data=comb2019, aes(fill=winner_19)) +
-  colscale +
+  fillscale_party2019 +
   coord_sf(datum = NA) +
   theme_light() +
   labs(title = "2019", fill = "Parties") +
   theme(legend.position = c(.8,.88), legend.key.size = unit(0.3, 'cm'))
 
-colscale <- scale_fill_manual(names(mycolours), values=mycolours, breaks=unique(comb2017$winner_17)) 
 p2017 <- ggplot() + 
   geom_sf(data=comb2017, aes(fill=winner_17)) +
-  colscale +
+  fillscale_party2017 +
   coord_sf(datum = NA) +
   theme_light() +
   labs(title = "2017", fill = "Parties") +
   theme(legend.position = c(.8,.88), legend.key.size = unit(0.3, 'cm'))
 
-colscale <- scale_fill_manual(names(mycolours), values=mycolours, breaks=unique(comb2015$winner_15))
 p2015 <- ggplot() + 
   geom_sf(data=comb2015, aes(fill=winner_15)) +
-  colscale +
+  fillscale_party2015 +
   coord_sf(datum = NA) +
   theme_light() +
   labs(title = "2015", fill = "Parties") +
@@ -119,103 +151,31 @@ census_reduced <- comb2019 %>%
   st_drop_geometry()
 
 # pairs plot without pano (only needed for merging)
-ggpairs(census_reduced[,1:ncol(census_reduced)-1])
+ggpairs(census_reduced %>% select(-pano))
 
 # join to election data, hex, and part-colour datasets, as before
-sel_vars_2019 <- left_join(elect2019, census_reduced, by = "pano") %>% 
+comb2019_reduced <- left_join(elect2019, census_reduced, by = "pano") %>% 
   left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>%
   left_join(party_colour, by = c("winner_19" = "party_name")) %>% 
   select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
   st_as_sf()
+saveRDS(comb2019_reduced, here("data", "comb2019_reduced.rds"))
+
+comb2017_reduced <- left_join(elect2017, census_reduced, by = "pano") %>% 
+  left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>%
+  left_join(party_colour, by = c("winner_17" = "party_name")) %>% 
+  select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
+  st_as_sf()
+saveRDS(comb2019_reduced, here("data", "comb2017_reduced.rds"))
+
+comb2015_reduced <- left_join(elect2015, census_reduced, by = "pano") %>% 
+  left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>%
+  left_join(party_colour, by = c("winner_15" = "party_name")) %>% 
+  select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
+  st_as_sf()
+saveRDS(comb2019_reduced, here("data", "comb2015_reduced.rds"))
 
 ```
-
-```{r}
-# make dataset with binary Scotland column
-sel_vars_2019_sep_scot <- sel_vars_2019 %>% 
-  mutate(scotland = ifelse(country == "Scotland", 1, 0))
-
-# OLS for conservative %, labour %, libdem %
-reg_cons <- lm(con_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_none + qual_none + health_bad_both + deprived_none + house_owned + household_one_person + ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
-summary(reg_cons)
-
-reg_lab <- lm(lab_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_none + qual_none + health_bad_both + deprived_none + house_owned + household_one_person + ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
-summary(reg_lab)
-
-reg_ld <- lm(ld_19 ~ leave_hanretty + age_18_44 + age_45_64 + cars_none + qual_none + health_bad_both + deprived_none + house_owned + household_one_person + ethnicity_white + born_uk + christian + unemployed + retired + scotland + born_elsewhere, data=sel_vars_2019_sep_scot)
-summary(reg_ld)
-
-```
-
-
-```{r}
-# PCA
-
-# calculate principal components
-PCAresults <- prcomp(census_reduced[,1:ncol(census_reduced)-1], scale. = TRUE)
-```
-```{r}
-# biplot coloured by country
-autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'country', size=1.5, loadings = TRUE, 
-         loadings.colour = 'blue', 
-         loadings.label = TRUE, loadings.label.size = 3) + 
-  theme(plot.background=element_blank(),
-        panel.background=element_rect(fill='transparent',color='black',size=1),
-        legend.text=element_text(hjust=1),
-        legend.key=element_blank())
-```
-
-```{r}
-# biplot coloured by country, faceted by country
-autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'country', size=1.5, loadings = TRUE, 
-         loadings.colour = 'blue', 
-         loadings.label = TRUE, loadings.label.size = 3) + 
-  theme(plot.background=element_blank(),
-        panel.background=element_rect(fill='transparent',color='black',size=1),
-        legend.text=element_text(hjust=1),
-        legend.key=element_blank()) + 
-  facet_wrap(~country)
-```
-
-```{r}
-# biplot coloured by winner
-autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=1, loadings = TRUE,
-         loadings.colour = 'blue',
-         loadings.label = TRUE, loadings.label.size = 3) + 
-  theme(plot.background=element_blank(),
-        panel.background=element_rect(fill='transparent',color='black',size=2),
-        legend.text=element_text(hjust=1),
-        legend.key=element_blank())
-```
-
-```{r}
-# biplot coloured by winner, faceted by country
-autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=1, loadings = TRUE,
-         loadings.colour = 'blue',
-         loadings.label = TRUE, loadings.label.size = 3) + 
-  theme(plot.background=element_blank(),
-        panel.background=element_rect(fill='transparent',color='black',size=2),
-        legend.text=element_text(hjust=1),
-        legend.key=element_blank()) + 
-  facet_wrap(~country)
-```
-
-```{r}
-# biplot coloured by winner, faceted by region
-autoplot(PCAresults, data = comb2019, geom = 'point',colour = 'winner_19', size=2, loadings = TRUE,
-         loadings.colour = 'black',
-         loadings.label = TRUE, loadings.label.size = 3) + 
-  theme(plot.background=element_blank(),
-        panel.background=element_rect(fill='transparent',color='black',size=2),
-        legend.text=element_text(hjust=1),
-        legend.key=element_blank()) + 
-  facet_wrap(~region)
-```
-
-```{r}
-
-```
-
 
 
 
