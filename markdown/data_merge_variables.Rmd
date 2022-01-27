@@ -5,6 +5,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 library(tidyverse)
 library(sf)
 library(parlitools)
@@ -14,7 +15,6 @@ library(lme4)
 library(mgcv)
 library(ggfortify)
 library(here)
-
 rm(list=ls())
 here()
 ```
