@@ -1,11 +1,5 @@
 library(tidyverse)
 library(sf)
-library(parlitools)
-library(GGally)
-library(patchwork)
-library(lme4)
-library(mgcv)
-library(ggfortify)
 library(here)
 
 rm(list=ls())
