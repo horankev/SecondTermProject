@@ -15,26 +15,28 @@ here()
 
 # read in required data
 census_reduced <- readRDS(here("data", "census_reduced.rds"))
-comb2019_reduced <- readRDS(here("data", "comb2019_reduced.rds"))
-party_colour <- readRDS(here("data", "party_colour.rds"))
-comb2019 <- readRDS(here("data", "comb2019.rds"))
-comb2017 <- readRDS(here("data", "comb2017.rds"))
-comb2015 <- readRDS(here("data", "comb2015.rds"))
+all_elections_reduced <- readRDS(here("data", "all_elections_reduced.rds"))
+all_elections <- readRDS(here("data", "all_elections.rds"))
 
-# set up colour scales
-mycolours_party2019 <- unique(comb2019$party_colour)
-names(mycolours_party2019) <- unique(comb2019$winner_19)
-mycolours_party2017 <- unique(comb2017$party_colour)
-names(mycolours_party2017) <- unique(comb2017$winner_17)
-mycolours_party2015 <- unique(comb2015$party_colour)
-names(mycolours_party2015) <- unique(comb2015$winner_15)
+# read in colour data
+mycolours_party2019 <- readRDS(here("data", "mycolours_party2019.rds"))
+mycolours_party2017 <- readRDS(here("data", "mycolours_party2017.rds"))
+mycolours_party2015 <- readRDS(here("data", "mycolours_party2015.rds"))
+mycolours_party2010 <- readRDS(here("data", "mycolours_party2010.rds"))
 
+# then make palettes for colouring by party
 colscale_party2019 <- scale_colour_manual(names(mycolours_party2019), values=mycolours_party2019, name="Party")
 colscale_party2017 <- scale_colour_manual(names(mycolours_party2017), values=mycolours_party2017, name="Party") 
 colscale_party2015 <- scale_colour_manual(names(mycolours_party2015), values=mycolours_party2015, name="Party")
+colscale_party2010 <- scale_colour_manual(names(mycolours_party2010), values=mycolours_party2010, name="Party")
+
+# then make palettes for filling by party
 fillscale_party2019 <- scale_fill_manual(names(mycolours_party2019), values=mycolours_party2019, name="Party")
 fillscale_party2017 <- scale_fill_manual(names(mycolours_party2017), values=mycolours_party2017, name="Party") 
 fillscale_party2015 <- scale_fill_manual(names(mycolours_party2015), values=mycolours_party2015, name="Party")
+fillscale_party2010 <- scale_fill_manual(names(mycolours_party2010), values=mycolours_party2010, name="Party")
+
+# then make palettes for colouring and filling by party and country
 mycolours_country <- c("red", "blue4", "#008142")
 names(mycolours_country) <- c("England", "Scotland", "Wales")
 colscale_country <- scale_colour_manual(names(mycolours_country), values=mycolours_country, name="Country")
@@ -59,27 +61,34 @@ make_biplot <- function(data, colourby, colourscale) {
 }
 
 # bi-plot coloured by country
-make_biplot(comb2019,"country",colscale_country)
+make_biplot(all_elections,"country",colscale_country)
 
 # bi-plot coloured by country, faceted by country
-make_biplot(comb2019,"country",colscale_country) + 
+make_biplot(all_elections,"country",colscale_country) + 
   facet_wrap(~country)
 
 # bi-plot coloured by winner
-make_biplot(comb2019,"winner_19",colscale_party2019)
+make_biplot(all_elections,"winner_19",colscale_party2019)
 
 # bi-plot coloured by winner, faceted by country
-make_biplot(comb2019,"winner_19",colscale_party2019) + 
+make_biplot(all_elections,"winner_19",colscale_party2019) + 
   facet_wrap(~country)
 
 # bi-plot coloured by winner, faceted by region
-make_biplot(comb2019,"winner_19",colscale_party2019) + 
+make_biplot(all_elections,"winner_19",colscale_party2019) + 
   facet_wrap(~region)
 
+# and the same as above for 2017
+make_biplot(all_elections,"winner_17",colscale_party2017) + 
+  facet_wrap(~region)
 
+# and the same as above for 2015
+make_biplot(all_elections,"winner_15",colscale_party2015) + 
+  facet_wrap(~region)
 
-
-
+# and the same as above for 2010
+make_biplot(all_elections,"winner_10",colscale_party2010) + 
+  facet_wrap(~region)
 
 
 
