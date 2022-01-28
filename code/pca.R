@@ -33,7 +33,7 @@ fillscale_party2017 <- scale_fill_manual(names(mycolours_party2017), values=myco
 fillscale_party2015 <- scale_fill_manual(names(mycolours_party2015), values=mycolours_party2015, name="Party")
 fillscale_party2010 <- scale_fill_manual(names(mycolours_party2010), values=mycolours_party2010, name="Party")
 
-# then make palettes for colouring and filling by party and country
+# then make palettes for colouring and filling by country
 mycolours_country <- c("red", "blue4", "#008142")
 names(mycolours_country) <- c("England", "Scotland", "Wales")
 colscale_country <- scale_colour_manual(names(mycolours_country), values=mycolours_country, name="Country")
