@@ -189,14 +189,13 @@ all_elections_reduced <- left_join(elect2019, census_reduced, by = "pano") %>%
   left_join(elect2015 %>% select(ons_const_id, ends_with("_15")), by = "ons_const_id") %>% 
   left_join(elect2015 %>% select(ons_const_id, ends_with("_10")), by = "ons_const_id") %>% 
   left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>%
-#  left_join(party_colour, by = c("winner_19" = "party_name")) %>% 
   select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
   rename_at(
     vars(ends_with(".x")),
-    ~str_replace(., "\\..$","")
+    ~str_replace(., "\\..$","") # remove the .x suffix for repeated cols
   ) %>% 
   select_at(
-    vars(-ends_with(".y"))
+    vars(-ends_with(".y")) # remove the duplicate cols ending in .y
   ) %>% 
 st_as_sf()
 saveRDS(all_elections_reduced, here("data", "all_elections_reduced.rds"))
