@@ -4,6 +4,7 @@ library(parlitools)
 library(patchwork)
 library(ggfortify)
 library(here)
+library(stringr)
 
 rm(list=ls())
 here()
@@ -54,7 +55,12 @@ make_biplot <- function(data, colourby, colourscale) {
     theme(plot.background=element_blank(),
           panel.background=element_rect(fill='transparent', color='black',size=2),
           legend.text=element_text(hjust=1),
-          legend.key=element_blank())
+          legend.key=element_blank()) + 
+    labs(title = "PCA Of Census Variables", 
+         subtitle = ifelse(
+      str_ends(deparse(substitute(colourscale)), "country"), # if colourscale ends in country, label accordingly
+      "Coloured By Country",
+      paste0("Coloured By Election Winners 20", str_sub(colourby, start= -2)))) # otherwise label by year
 }
 
 # bi-plot coloured by country
@@ -107,16 +113,16 @@ z=1
 # loop through each year, sub_looping through each region
 # adding each plot into a 44 length list (4 elections * 11 regions)
 
-for (j in 1:length(w)) {
-  for (i in 1:length(r)) {
+for (j in seq_along(w)) {
+  for (i in seq_along(r)) {
     
     y <- all_elections_reduced %>% 
-      filter(region==r[i]) %>% 
+      filter(region==r[[i]]) %>% 
       st_drop_geometry()
     
     PCAresults_loop <- prcomp(y[,116:130], scale. = TRUE)
     plot_list[[z]] <- autoplot(PCAresults_loop, data = y, geom = 'point', 
-                               colour = w[j], size=1.5, loadings = TRUE,
+                               colour = w[[j]], size=1.5, loadings = TRUE,
                                loadings.colour = 'black', 
                                loadings.label = TRUE, loadings.label.size = 4, 
                                loadings.label.colour = "black", loadings.label.hjust = -0.15) + 
