@@ -12,7 +12,6 @@ here()
 
 # GET DATASETS
 elect2019 <- bes_2019 %>% 
-  
   filter(country != "Northern Ireland") # census dataset does not include NI
 saveRDS(elect2019, here("data", "elect2019.rds"))
 
@@ -201,6 +200,5 @@ all_elections_reduced <- left_join(elect2019, census_reduced, by = "pano") %>%
   ) %>% 
 st_as_sf()
 saveRDS(all_elections_reduced, here("data", "all_elections_reduced.rds"))
-
 
 
