@@ -120,7 +120,7 @@ for (j in seq_along(w)) {
       filter(region==r[[i]]) %>% 
       st_drop_geometry()
     
-    PCAresults_loop <- prcomp(y[,116:130], scale. = TRUE)
+    PCAresults_loop <- prcomp(y[,65:79], scale. = TRUE)
     plot_list[[z]] <- autoplot(PCAresults_loop, data = y, geom = 'point', 
                                colour = w[[j]], size=1.5, loadings = TRUE,
                                loadings.colour = 'black', 
