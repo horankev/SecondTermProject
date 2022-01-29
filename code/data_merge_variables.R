@@ -12,15 +12,16 @@ here()
 
 # GET DATASETS
 elect2019 <- bes_2019 %>% 
-  filter(country != "Northern Ireland")  # census dataset does not include NI
+  
+  filter(country != "Northern Ireland") # census dataset does not include NI
 saveRDS(elect2019, here("data", "elect2019.rds"))
 
-elect2017 <- bes_2017 %>% 
-  filter(country != "Northern Ireland")
+elect2017 <- bes_2017 %>%
+  filter(country != "Northern Ireland") # census dataset does not include NI
 saveRDS(elect2017, here("data", "elect2017.rds"))
 
-elect2015 <- bes_2015 %>%
-  filter(country != "Northern Ireland")
+elect2015 <- bes_2015 %>% 
+  filter(country != "Northern Ireland") # census dataset does not include NI
 saveRDS(elect2015, here("data", "elect2015.rds"))
 
 census <- census_11 
@@ -50,7 +51,7 @@ all_elections <- left_join(elect2019, temp_census, by = "pano") %>%
   left_join(elect2015 %>% select(ons_const_id, ends_with("_15")), by = "ons_const_id") %>% 
   left_join(elect2015 %>% select(ons_const_id, ends_with("_10")), by = "ons_const_id") %>% 
   left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>%
-#  left_join(party_colour, by = c("winner_19" = "party_name")) %>% 
+  select(-contains(c("_ppc_","alliance","dup","uup","sf","sdlp"))) %>% # # remove NI, and names/genders of candidates 
   select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
   rename_at(
     vars(ends_with(".x")),
@@ -189,6 +190,7 @@ all_elections_reduced <- left_join(elect2019, census_reduced, by = "pano") %>%
   left_join(elect2015 %>% select(ons_const_id, ends_with("_15")), by = "ons_const_id") %>% 
   left_join(elect2015 %>% select(ons_const_id, ends_with("_10")), by = "ons_const_id") %>% 
   left_join(temp_hex, by = c("ons_const_id"="gss_code")) %>%
+  select(-contains(c("_ppc_","alliance","dup","uup","sf","sdlp"))) %>% # # remove NI, and names/genders of candidates 
   select(pano, everything()) %>% # put pano as column 1 to match 2017 and 2015 structures
   rename_at(
     vars(ends_with(".x")),
@@ -199,7 +201,6 @@ all_elections_reduced <- left_join(elect2019, census_reduced, by = "pano") %>%
   ) %>% 
 st_as_sf()
 saveRDS(all_elections_reduced, here("data", "all_elections_reduced.rds"))
-
 
 
 
