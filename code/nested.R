@@ -14,54 +14,107 @@ all_elections_reduced <- readRDS(here("data", "all_elections_reduced.rds"))
 # remove the year tag on the variable names,
 # separately for each election year dataset
 # and add a column indicating the year
-df2019 <- all_elections_reduced %>% 
-  select(pano, ends_with("_19")) %>% 
-  mutate(year = 2019)
+# and add a primary key PK: pano_year
+df2019 <- all_elections_reduced %>%
+  select(pano, ends_with("_19")) %>%
+  mutate(year = 2019,
+         PK = paste0(pano, "_", str_sub(year, -2)))
 names(df2019) <- gsub("_19", "", names(df2019), fixed = TRUE)
 
-df2017 <- all_elections_reduced %>% 
-  select(pano, ends_with("_17"), -majority_vote_17) %>% 
-  mutate(year = 2017)
+df2017 <- all_elections_reduced %>%
+  select(pano, ends_with("_17"), -majority_vote_17) %>%
+  mutate(year = 2017,
+         PK = paste0(pano, "_", str_sub(year, -2))) %>%
+  st_drop_geometry()
 names(df2017) <- gsub("_17", "", names(df2017), fixed = TRUE)
 
-df2015 <- all_elections_reduced %>% 
-  select(pano, ends_with("_15")) %>% 
-  mutate(year = 2015)
+df2015 <- all_elections_reduced %>%
+  select(pano, ends_with("_15")) %>%
+  mutate(year = 2015,
+         PK = paste0(pano, "_", str_sub(year, -2))) %>%
+  st_drop_geometry()
 names(df2015) <- gsub("_15", "", names(df2015), fixed = TRUE)
 
-df2010 <- all_elections_reduced %>% 
-  select(pano, ends_with("_10")) %>% 
-  mutate(year = 2010)
+df2010 <- all_elections_reduced %>%
+  select(pano, ends_with("_10")) %>%
+  mutate(year = 2010,
+         PK = paste0(pano, "_", str_sub(year, -2))) %>%
+  st_drop_geometry()
 names(df2010) <- gsub("_10", "", names(df2010), fixed = TRUE)
 
 # extract a dataset without the year-specific data
-dfbase <- all_elections_reduced %>% 
-  select(-ends_with("_19"), 
-         -ends_with("_17"), 
-         -ends_with("_15"), 
-         -ends_with("_10")) %>% 
+dfbase <- all_elections_reduced %>%
+  select(-ends_with("_19"),
+         -ends_with("_17"),
+         -ends_with("_15"),
+         -ends_with("_10")) %>%
   st_drop_geometry()
 
-# join each year separately to this dataset
-temp19 <- dfbase %>% 
-  left_join(df2019)
-temp17 <- dfbase %>% 
-  left_join(df2017)
-temp15 <- dfbase %>% 
-  left_join(df2015)
-temp10 <- dfbase %>% 
-  left_join(df2010)
-
-# then join these four together
-longdata <- temp19 %>% 
-  full_join(temp17) %>% 
-  full_join(temp15) %>% 
-  full_join(temp10) %>% 
+# then join these five into one long dataset
+longdata <- dfbase %>%
+  full_join(df2019) %>%
+  left_join(df2017) %>%
+  left_join(df2015) %>%
+  left_join(df2010) %>% 
   select(-ends_with("1719")) # these can be calculated from other cols
 
 # perform the nesting
+# in this nested dataframe, each entry is a dataframe of a region's variables in a year
 nested <- longdata %>% 
-  group_by(region,year) %>% 
+  group_by(region, year) %>% 
   nest()
+###################################
 
+region_model <- function (df) {
+  lm(con ~ leave_hanretty + age_18_44 + age_45_64 + cars_none +
+       qual_none + health_bad_both + deprived_none + house_owned +
+       household_one_person + ethnicity_white + born_uk + christian +
+       unemployed + retired + born_elsewhere, data=df)
+}
+models <- nested %>% 
+  mutate(
+    mod = map(data, region_model)
+  )
+
+models <- models %>% 
+  mutate(
+    tidy = mod %>% map(tidy),
+    glance = mod %>% map(glance),
+    rsq = glance %>%  map_dbl("r.squared"),
+    augment = mod %>% map(augment)
+  )
+
+models %>% arrange(desc(rsq))
+
+models %>%  filter(year==2019)
+
+models %>% 
+  ggplot(aes(rsq, reorder(region, rsq))) + geom_point(aes(colour = region))
+
+# unnest
+unnest(models, data)
+
+# unnest the data section
+unnest(models, data, .drop = TRUE) %>% View()
+
+# unnest the glance data
+unnest(models, glance, .drop = TRUE) %>% View()
+
+# unnest the augment data
+unnest(models, augment, .drop = TRUE) %>% View()
+
+# unnest the augment data
+unnest(models, tidy) %>% View()
+
+###
+models %>% 
+  unnest(tidy) %>% 
+  select(region, constityear, term, estimate, rsq) %>% 
+  spread(term, estimate) %>% 
+  ggplot(aes(`rsq`, year)) +
+  geom_point(aes(colour = region, size = rsq)) +
+  geom_smooth(se=FALSE) +
+  xlab("xxx") +
+  ylab("Year") +
+  scale_size_area()
 
