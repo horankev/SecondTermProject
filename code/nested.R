@@ -51,14 +51,25 @@ dfbase <- all_elections_reduced %>%
   st_drop_geometry()
 
 # then join these five into one long dataset
-longdata <- dfbase %>%
-  full_join(df2019) %>%
-  left_join(df2017) %>%
-  left_join(df2015) %>%
-  left_join(df2010) %>% 
-  select(-ends_with("1719")) # these can be calculated from other cols
+temp19 <- dfbase %>%
+  full_join(df2019)
+temp17 <- dfbase %>%
+  full_join(df2017)
+temp15 <- dfbase %>%
+  full_join(df2015)
+temp10 <- dfbase %>%
+  full_join(df2010)
 
-# perform the nesting
+longdata <- temp19 %>% 
+  full_join(temp17) %>%
+  full_join(temp15) %>%
+  full_join(temp10) %>% 
+  select(-ends_with("1719")) # these can be calculated from other cols
+saveRDS(longdata, here("data", "longdata.rds"))
+
+###################################
+
+# PERFORM A NESTING
 # in this nested dataframe, each entry is a dataframe of a region's variables in a year
 nested <- longdata %>% 
   group_by(region, year) %>% 
@@ -117,4 +128,13 @@ models %>%
   xlab("xxx") +
   ylab("Year") +
   scale_size_area()
+
+############################
+
+nested2 <- longdata %>% 
+  group_by(region, year) %>% 
+  nest()
+
+
+
 
