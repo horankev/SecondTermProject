@@ -103,13 +103,13 @@ p_2019ch <- ggplot() +
   scale_fill_gradient2(low="red",mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2019 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019 By Unemployment"))
+       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019"))
 
 # show which constituencies flipped to Conservative on a hex map
 p_2019chflip <- ggplot() + 
   geom_sf(data = df_con_19change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2019 - Conservative Flips")
+  labs(title="2019-17 - Conservative Flips")
 
 # scatterplot of vote change vs exlanatory variable, coloured by flip or not
 scat_2019ch <- ggplot(df_con_19change) + 
@@ -139,11 +139,11 @@ p_2017ch <- ggplot() + geom_sf(data = df_con_17change, aes(fill = stdres)) +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2017 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2015-2017 By Unemployment"))
+       subtitle = str_c("OLS Regression On Change In Conservative Vote 2015-2017"))
 
 p_2017chflip <- ggplot() + geom_sf(data = df_con_17change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2017 - Conservative Flips")
+  labs(title="2017-15 - Conservative Flips")
 
 scat_2017ch <- ggplot(df_con_17change) + 
   geom_point(aes(x=age_18_44, y=con_17change, colour=consflip)) +
@@ -172,11 +172,11 @@ p_2015ch <- ggplot() + geom_sf(data = df_con_15change, aes(fill = stdres)) +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2015 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2010-2015 By Unemployment"))
+       subtitle = str_c("OLS Regression On Change In Conservative Vote 2010-2015"))
 
 p_2015chflip <- ggplot() + geom_sf(data = df_con_15change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2015 - Conservative Flips")
+  labs(title="2015-10 - Conservative Flips")
 
 scat_2015ch <- ggplot(df_con_15change) + 
   geom_point(aes(x=age_18_44, y=con_15change, colour=consflip)) +
@@ -217,11 +217,11 @@ p_2019ch <- ggplot() + geom_sf(data = df_con_19change, aes(fill = stdres)) +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2019 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019 By Unemployment"))
+       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019"))
 
 p_2019chflip <- ggplot() + geom_sf(data = df_con_19change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2019 - Conservative Flips")
+  labs(title="2019-17 - Conservative Flips")
 
 scat_2019ch <- ggplot(df_con_19change) + 
   geom_point(aes(x=age_18_44, y=con_19change, colour=consflip)) +
@@ -251,11 +251,11 @@ p_2017ch <- ggplot() + geom_sf(data = df_con_17change, aes(fill = stdres)) +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2017 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2015-2017 By Unemployment"))
+       subtitle = str_c("OLS Regression On Change In Conservative Vote 2015-2017"))
 
 p_2017chflip <- ggplot() + geom_sf(data = df_con_17change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2017 - Conservative Flips")
+  labs(title="2017-15 - Conservative Flips")
 
 scat_2017ch <- ggplot(df_con_17change) + 
   geom_point(aes(x=age_18_44, y=con_17change, colour=consflip)) +
@@ -285,11 +285,11 @@ p_2015ch <- ggplot() + geom_sf(data = df_con_15change, aes(fill = stdres)) +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2015 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2010-2015 By Unemployment"))
+       subtitle = str_c("OLS Regression On Change In Conservative Vote 2010-2015"))
 
 p_2015chflip <- ggplot() + geom_sf(data = df_con_15change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2015 - Conservative Flips")
+  labs(title="2015-10 - Conservative Flips")
 
 scat_2015ch <- ggplot(df_con_15change) + 
   geom_point(aes(x=age_18_44, y=con_15change, colour=consflip)) +
@@ -334,7 +334,7 @@ p_2019ch <- ggplot() + geom_sf(data = df_con_19change, aes(fill = stdres)) +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2019 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019 By Unemployment"))
+       subtitle = str_c("England And Wales"))
 
 p_2019ch_isolate <- ggplot() + 
   geom_sf(data = df_con_19change, fill = "white") + 
@@ -342,11 +342,11 @@ p_2019ch_isolate <- ggplot() +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2019 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019 By Unemployment"))
+       subtitle = str_c("Where Conservative Flips Occurred"))
 
 p_2019chflip <- ggplot() + geom_sf(data = df_con_19change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2019 - Conservative Flips")
+  labs(title="2019-17 - Conservative Flips")
 
 scat_2019ch <- ggplot(df_con_19change) + 
   geom_point(aes(x=age_18_44, y=con_19change, colour=consflip)) +
@@ -382,7 +382,7 @@ p_2019ch <- ggplot() + geom_sf(data = df_con_19change, aes(fill = stdres)) +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2019 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019 By Unemployment"))
+       subtitle = str_c("England And Wales"))
 
 p_2019ch_isolate <- ggplot() + 
   geom_sf(data = df_con_19change, fill = "white") + 
@@ -390,11 +390,11 @@ p_2019ch_isolate <- ggplot() +
   scale_fill_gradient2(low="red", mid = "white", high="darkblue", 
                        limits=c(min(df_con_19change$stdres), max(df_con_19change$stdres))) +
   labs(title="2019 - Standardised Residuals",
-       subtitle = str_c("OLS Regression On Change In Conservative Vote 2017-2019 By Unemployment"))
+       subtitle = str_c("Where Conservative Flips Occurred"))
 
 p_2019chflip <- ggplot() + geom_sf(data = df_con_19change, aes(fill = consflip)) +
   scale_fill_manual(values=c("Grey","DarkBlue")) +
-  labs(title="2019 - Conservative Flips")
+  labs(title="2019-17 - Conservative Flips")
 
 p_2019ch + p_2019ch_isolate + p_2019chflip
 
