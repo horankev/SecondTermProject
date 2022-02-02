@@ -3,6 +3,7 @@ library(sf)
 library(here)
 library(broom)
 library(patchwork)
+library(GGally)
 
 rm(list=ls())
 here()
@@ -23,8 +24,41 @@ df_con_19change <- all_elections_reduced %>%
 # and create new column call con_19change
 # the %2019 minus %2017
 
+#####################################
 
-pairs(
+# Visualise change in Conservative Vote
+
+# Hex Map
+ggplot() + 
+  geom_sf(data=df_con_19change, aes(fill=con_19change)) + 
+  scale_fill_gradient2(low = "darkred", high = "darkblue") + 
+  coord_sf(datum = NA) + 
+  theme_light() +
+  labs(title = "2019-17 Conservative Vote Change", fill = "% Change")
+
+# Histograms
+ggplot(data=df_con_19change, aes(x=con_19change)) + 
+  geom_histogram(fill = "lightblue", colour = "darkblue") +
+  geom_vline(xintercept = 0, colour="red") + 
+  labs(title = "Change In Conservative Vote 2019-17",
+       subtitle = "Histograms By Region",
+       x="% Change") + 
+  facet_wrap(~region)
+
+# Boxplots
+ggplot(data=df_con_19change, aes(x=region,y=con_19change)) + 
+  geom_boxplot(fill= "lightblue") + 
+#  geom_jitter(width = 0.1) +
+  geom_hline(yintercept=0, colour="red") + 
+  labs(title = "Change In Conservative Vote 2019-17",
+       subtitle = "Boxplots By Region",
+       x="% Change") + 
+  coord_flip()
+
+
+#####################################
+
+ggpairs(
   df_con_19change %>% 
     st_drop_geometry() %>% 
     select(
@@ -34,16 +68,69 @@ pairs(
     unemployed, retired, born_elsewhere)
 )
 
-# remove a few variables
-pairs(
+ggcorr(
   df_con_19change %>% 
     st_drop_geometry() %>% 
     select(
-      con_19change, leave_hanretty, age_18_44, 
-      qual_none, health_bad_both, deprived_none, 
-      household_one_person, ethnicity_white, christian,
-      unemployed, retired,)
+      con_19change, leave_hanretty, age_18_44, age_45_64, cars_none,
+      qual_none, health_bad_both, deprived_none, house_owned,
+      household_one_person, ethnicity_white, born_uk, christian,
+      unemployed, retired, born_elsewhere), 
+  label = TRUE, label_round = 2)
+
+# remove a few variables
+ggpairs(
+  df_con_19change %>% 
+    st_drop_geometry() %>% 
+    select(
+      con_19change, con_19change, leave_hanretty, 
+      health_bad_both, 
+      household_one_person, 
+      unemployed, retired), 
+  lower=list(continuous="smooth", aes(colour="blue"))
 )
+
+ggcorr(
+  df_con_19change %>% 
+    st_drop_geometry() %>% 
+    select(
+      con_19change, leave_hanretty, 
+      health_bad_both, 
+      household_one_person, 
+      unemployed, retired), 
+  label = TRUE, label_round = 2)
+
+
+# make function for nice ggpairs plot
+my_fn <- function(data, mapping, ...){
+  p <- ggplot(data = data, mapping = mapping) + 
+    geom_point() + 
+    geom_smooth(method=loess, fill="red", color="red", ...) +
+    geom_smooth(method=lm, fill="blue", color="blue", ...)
+  p
+}
+g1 = ggpairs(df_con_19change %>% 
+               st_drop_geometry() %>% 
+               select(
+                 con_19change, leave_hanretty, age_18_44, age_45_64, cars_none,
+                 qual_none, health_bad_both, deprived_none, house_owned,
+                 household_one_person, ethnicity_white, born_uk, christian,
+                 unemployed, retired, born_elsewhere), 
+             lower = list(continuous = my_fn))
+g1
+
+g2 = ggpairs(df_con_19change %>% 
+               st_drop_geometry() %>% 
+               select(
+                 con_19change, leave_hanretty, 
+                 health_bad_both, 
+                 household_one_person, 
+                 unemployed, retired), 
+             lower = list(continuous = my_fn))
+g2
+
+#########################################
+
 
 # perform OLS with various combinations of explanatory variables
 model_con_19_change1 <- lm(con_19change ~ leave_hanretty + age_18_44 + age_45_64 + cars_none +
@@ -68,10 +155,41 @@ model_con_19_change4 <- lm(con_19change ~ leave_hanretty + age_18_44 +
                 household_one_person + retired + born_elsewhere, data = df_con_19change)
 summary(model_con_19_change4)
 
-model_con_19_change5 <- lm(con_19change ~ leave_hanretty + age_18_44 + 
-                 qual_none + deprived_none + 
-                 household_one_person + retired, data = df_con_19change)
+model_con_19_change5 <- lm(con_19change ~ leave_hanretty +
+                           health_bad_both + 
+                           household_one_person + 
+                           unemployed + retired, data = df_con_19change)
 summary(model_con_19_change5)
+
+#################################
+
+# LASSO
+
+library(glmnet)
+
+y <- df_con_19change$con_19change
+x <- as.matrix(
+  df_con_19change %>% 
+  select(leave_hanretty, age_18_44, age_45_64, cars_none,
+         qual_none, health_bad_both, deprived_none, house_owned,
+         household_one_person, ethnicity_white, born_uk, christian,
+         unemployed, retired) %>% 
+  st_drop_geometry()
+)
+
+#perform k-fold cross-validation to find optimal lambda value
+cv_model <- cv.glmnet(x, y, alpha = 1)
+
+#find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+best_lambda
+
+plot(cv_model) 
+
+#find coefficients of best model
+best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef(best_model)
+
 
 #################################
 
