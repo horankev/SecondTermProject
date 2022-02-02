@@ -4,6 +4,7 @@ library(here)
 library(broom)
 library(patchwork)
 library(GGally)
+library(glmnet)
 
 rm(list=ls())
 here()
@@ -164,8 +165,6 @@ summary(model_con_19_change5)
 #################################
 
 # LASSO
-
-library(glmnet)
 
 y <- df_con_19change$con_19change
 x <- as.matrix(
