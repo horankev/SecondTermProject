@@ -19,6 +19,7 @@ all_elections <- readRDS(here("data", "all_elections.rds"))
 
 #################################
 
+
 # pick variables for PCA, including results from previous (17) election for Lab and Cons
 vars_selection <- all_elections %>% 
   filter(!is.na(con_17) & !is.na(lab_17)) %>% 
@@ -247,10 +248,13 @@ library(stargazer)
 library(spatialreg)
 library(spdep)
 
-constituency_mapdata <- here("data", "westminster-parliamentary-constituencies.geojson") %>%
-  st_read()
+# constituency_polygons <- here("data", "westminster-parliamentary-constituencies.geojson") %>%
+#   st_read()
+# saveRDS(constituency_polygons, here("data", "constituency_polygons.rds"))
+constituency_polygons <- readRDS(here("data", "constituency_polygons.rds"))
+
 cons_change_df_withgeojson <- left_join(cons_change_df %>% st_drop_geometry(), 
-                                        constituency_mapdata, by = c("ons_const_id" = "pcon19cd")) %>% 
+                                        constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
   st_as_sf()
 
 
@@ -435,6 +439,7 @@ p11 <- plotfunc("coef_born_uk")
 p12 <- plotfunc("coef_christian")
 p13 <- plotfunc("coef_unemployed")
 p14 <- plotfunc("coef_retired")
+
 
 grid.arrange(p1,p2,p3,p4,p5,p6, nrow=3, ncol=2)
 grid.arrange(p7,p8,p9,p10,p11,p12, nrow=3, ncol=2)
