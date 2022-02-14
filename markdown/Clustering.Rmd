@@ -1,0 +1,368 @@
+---
+title: "Clustering"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message = FALSE, warning = FALSE, fig.height=6, fig.width=6)
+```
+
+```{r}
+
+library(tidyverse)
+library(sf)
+library(parlitools)
+library(here)
+library(ggfortify)
+library(patchwork)
+library(stringr)
+library(here)
+library(GGally)
+library(spatialreg)
+library(spdep)
+library(broom)
+library(spgwr)
+library(gridExtra)
+library(grid)
+library(Hmisc)
+library(MASS)
+library(stargazer)
+
+rm(list=ls())
+here()
+
+#################################
+# FOR CLUSTERING, I WANT TO USE ALL VARIABLES IN CENSUS
+
+# read in required data
+
+all_elections <- readRDS(here("data", "all_elections.rds"))
+party_colour <- party_colour
+
+# focus on change in conservative vote in England and Wales
+# will add variable for change in conservative vote 2017-19: "con_change"
+all_elections <- all_elections %>% 
+  mutate(con_change = con_19 - con_17) %>% 
+  filter(!is.na(con_change)) # where didn't compete, speaker's seat
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+```
+
+```{r}
+# select variables
+
+# extract just the variables and con_change column...
+
+vars_complete <- all_elections1 %>% 
+  dplyr::select(24,25,35,65:249) %>% 
+  dplyr::select_if(~ !any(is.na(.))) %>% 
+  mutate(con_change = con_19-con_17) %>% 
+  dplyr::select(-con_19,-con_17) %>% 
+  st_drop_geometry()
+
+vars_gender <- vars_complete %>% 
+  dplyr::select(male,female)
+vars_age <- vars_complete %>% 
+  dplyr::select(8:23)
+vars_housing <- vars_complete %>% 
+  dplyr::select(24:55)
+vars_cars <- vars_complete %>% 
+  dplyr::select(56:60)
+vars_ethnicity <- vars_complete %>% 
+  dplyr::select(61:83)
+vars_born <- vars_complete %>% 
+  dplyr::select(84:94)
+vars_passport <- vars_complete %>% 
+  dplyr::select(95:106)
+vars_anglophone <- vars_complete %>% 
+  dplyr::select(107:110)
+vars_religion <- vars_complete %>% 
+  dplyr::select(111:119)
+vars_employment <- vars_complete %>% 
+  dplyr::select(120:147)
+vars_industry <- vars_complete %>% 
+  dplyr::select(148:165)
+vars_qualifications <- vars_complete %>% 
+  dplyr::select(166:173)
+vars_health <- vars_complete %>% 
+  dplyr::select(174:178)
+vars_deprivation <- vars_complete %>% 
+  dplyr::select(182:186)
+vars_con_change <- vars_complete %>% 
+  dplyr::select(187)
+
+df.list <- list(vars_gender, vars_age, vars_housing, vars_cars, vars_ethnicity, 
+                vars_born, vars_passport, vars_anglophone, vars_religion, 
+                vars_employment, vars_industry, vars_qualifications, 
+                vars_health, vars_deprivation, vars_con_change)
+names(df.list) <- c("vars_gender", "vars_age", "vars_housing", "vars_cars", "vars_ethnicity", 
+                "vars_born", "vars_passport", "vars_anglophone", "vars_religion", 
+                "vars_employment", "vars_industry", "vars_qualifications", 
+                "vars_health", "vars_deprivation", "vars_con_change")
+```
+
+
+```{r, fig.height=6, fig.width=6}
+
+#Elbow Method for finding the optimal number of clusters
+set.seed(123)
+# Compute and plot within-sum-of-squares for k = 2 to k = 8.
+k.max <- 8
+data <- vars_housing
+wss <- sapply(1:k.max, 
+              function(k){kmeans(data, k, nstart=50,iter.max = 15 )$tot.withinss})
+wss
+wss.data <- tibble(1:k.max, wss)
+ggplot(wss.data, aes(x=1:k.max, y=wss)) + 
+  geom_line() + 
+  geom_point() + 
+  labs(x="Number of clusters K", 
+       y="Total within-clusters sum of squares")
+
+
+```
+
+
+```{r, fig.height=12, fig.width=12}
+
+# map the cluster assigned to each constituency
+# by different variable categories
+# for k=3
+
+p3k <- list() # make list to fill with k=3 maps
+for (i in seq_along(df.list)){
+  set.seed(123)
+  c1 <- kmeans(df.list[[i]], 3, 25)
+  all_elections1$kcluster3 <- factor(c1$cluster)
+  
+  p3k[[i]] <- ggplot() + geom_sf(data=all_elections1, aes(fill=kcluster3)) + 
+  coord_sf(datum = NA) +
+  scale_fill_brewer(palette="Dark2") + 
+    labs(title = paste("Variables Group: ", 
+                               str_to_title(str_sub(names(df.list[i]),start=6))),
+         subtitle = "K-means: k=3", 
+         fill = "Cluster")
+}
+
+do.call("grid.arrange", c(p3k[1:9], ncol=3))
+do.call("grid.arrange", c(p3k[10:15], ncol=3))
+
+```
+
+```{r, fig.height=12, fig.width=12}
+
+# map the cluster assigned to each constituency
+# by different variable categories
+# for k=4
+
+p4k <- list() # make list to fill with k=4 maps
+for (i in seq_along(df.list)){
+  set.seed(123)
+  c1 <- kmeans(df.list[[i]], 4, 25)
+  all_elections1$kcluster4 <- factor(c1$cluster)
+  
+  p3k[[i]] <- ggplot() + geom_sf(data=all_elections1, aes(fill=kcluster4)) + 
+  coord_sf(datum = NA) +
+  scale_fill_brewer(palette="Dark2") + 
+    labs(title = paste("Variables Group: ", 
+                               str_to_title(str_sub(names(df.list[i]),start=6))),
+         subtitle = "K-means: k=4", 
+         fill = "Cluster")
+}
+
+do.call("grid.arrange", c(p3k[1:9], ncol=3))
+do.call("grid.arrange", c(p3k[10:15], ncol=3))
+
+```
+
+```{r}
+
+# read in polygon spatial data for constituencies
+constituency_polygons <- readRDS(here("data", "constituency_polygons.rds"))
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf()
+
+# # make appropriate matrices for spatial analysis
+# neighbours <- poly2nb(all_elections_polygons, queen=T)
+# weights <- nb2listw(neighbours, style="W", zero.policy = T)
+# 
+# # check to see which have no neighbours
+# weights[["neighbours"]]
+# # 253 and 570
+# # remove these two islands
+
+# construct two matrices for spatial analysis
+neighbours <- poly2nb(all_elections_polygons[-c(253,570),], queen=T)
+weights <- nb2listw(neighbours, style="B", zero.policy = T)
+weights[["neighbours"]]
+
+min_sp_tree <- mstree(weights)
+
+vars_complete_sf <- left_join(vars_complete, all_elections) %>% 
+  st_as_sf() %>% 
+  dplyr::select(1:187) %>% 
+  dplyr::select(where(is.numeric)) %>% 
+  st_drop_geometry()
+
+
+```
+
+```{r, fig.height=12, fig.width=12}
+
+# regionalisation displayed as hexagons
+# number of regions = ncuts + 1
+
+regions_vars_list <- list() # make list to fill with regions
+for (i in seq_along(df.list)){
+  clus4 <- skater(edges = min_sp_tree[,1:2], data = df.list[[i]], ncuts = 3)
+  
+  vars_complete_sf2 <- vars_complete_sf[-c(253,570),] %>% 
+  mutate(clus = factor(clus4$groups)) %>% 
+  left_join(all_elections1) %>% 
+  st_as_sf()
+  
+  regions_vars_list[[i]] <- ggplot() + geom_sf(data=vars_complete_sf2, aes(fill=clus)) + 
+    coord_sf(datum = NA) + 
+    scale_fill_brewer(palette="Dark2") + 
+    labs(title = paste("Variables Group: ", 
+                               str_to_title(str_sub(names(df.list[i]),start=6))),
+         subtitle = "Regionalisation: 4 regions", 
+         fill = "Zone")
+}
+
+do.call("grid.arrange", c(regions_vars_list[1:9], ncol=3))
+do.call("grid.arrange", c(regions_vars_list[10:15], ncol=3))
+
+
+```
+
+```{r, fig.height=12, fig.width=12}
+
+# regionalisation displayed as real shape polygons
+# number of regions = ncuts + 1
+
+# first, simplify the polygons for multiple plotting
+simplepolys <- st_simplify(all_elections_polygons, dTolerance = 1000)
+
+# define a colour palette with 25 colours to allow for more than 9 regions
+c25 <- c(
+  "dodgerblue2", "#E31A1C", # red
+  "green4",
+  "#6A3D9A", # purple
+  "#FF7F00", # orange
+  "black", "gold1",
+  "skyblue2", "#FB9A99", # lt pink
+  "palegreen2",
+  "#CAB2D6", # lt purple
+  "#FDBF6F", # lt orange
+  "gray70", "khaki2",
+  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
+  "darkturquoise", "green1", "yellow4", "yellow3",
+  "darkorange4", "brown"
+)
+regions_vars_list <- list() # make list to fill with regions
+for (i in seq_along(df.list)){
+  clus4 <- skater(edges = min_sp_tree[,1:2], data = df.list[[i]], ncuts = 7)
+  
+  vars_complete_sf2 <- vars_complete_sf[-c(253,570),] %>% 
+  mutate(clus = factor(clus4$groups)) %>% 
+  left_join(simplepolys) %>% 
+  st_as_sf()
+  
+  regions_vars_list[[i]] <- ggplot() + geom_sf(data=vars_complete_sf2, aes(fill=clus)) + 
+    coord_sf(datum = NA) + 
+    scale_fill_manual(values=c25) + 
+    labs(title = paste("Variables Group: ", 
+                               str_to_title(str_sub(names(df.list[i]),start=6))),
+         subtitle = "Regionalisation: 8 regions", 
+         fill = "Zone")
+}
+
+do.call("grid.arrange", c(regions_vars_list[1:2], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[3:4], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[5:6], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[7:8], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[9:10], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[11:12], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[13:14], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[15], ncol=2))
+
+
+
+```
+
+
+```{r, fig.height=12, fig.width=12}
+
+# removing London
+
+# regionalisation displayed as real shape polygons
+# number of regions = ncuts + 1
+
+# construct two matrices for spatial analysis which don't include London
+neighbours <- poly2nb(all_elections_polygons[-c(253,570),] %>% filter(region!="London"), queen=T)
+weights <- nb2listw(neighbours, style="B", zero.policy = T)
+weights[["neighbours"]]
+
+min_sp_tree <- mstree(weights)
+
+# first, simplify the polygons for multiple plotting
+simplepolys <- st_simplify(all_elections_polygons, dTolerance = 1000) %>% 
+  filter(region!="London")
+
+# a colour palette with 25 colours
+c25 <- c(
+  "dodgerblue2", "#E31A1C", # red
+  "green4",
+  "#6A3D9A", # purple
+  "#FF7F00", # orange
+  "black", "gold1",
+  "skyblue2", "#FB9A99", # lt pink
+  "palegreen2",
+  "#CAB2D6", # lt purple
+  "#FDBF6F", # lt orange
+  "gray70", "khaki2",
+  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
+  "darkturquoise", "green1", "yellow4", "yellow3",
+  "darkorange4", "brown"
+)
+regions_vars_list <- list() # make list to fill with regions
+for (i in seq_along(df.list)){
+  clus4 <- skater(edges = min_sp_tree[,1:2], data = df.list[[i]], ncuts = 7)
+  
+  vars_complete_sf2 <- vars_complete_sf[-c(253,570),] %>% 
+  inner_join(simplepolys) %>% 
+  mutate(clus = factor(clus4$groups)) %>% 
+  st_as_sf()
+  
+  regions_vars_list[[i]] <- ggplot() + geom_sf(data=vars_complete_sf2 %>% filter(region!="London"), aes(fill=clus)) + 
+    coord_sf(datum = NA) + 
+    scale_fill_manual(values=c25) + 
+    labs(title = paste("Variables Group: ", 
+                               str_to_title(str_sub(names(df.list[i]),start=6))),
+         subtitle = "Regionalisation: 8 regions not including London", 
+         fill = "Zone")
+}
+
+do.call("grid.arrange", c(regions_vars_list[1:2], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[3:4], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[5:6], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[7:8], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[9:10], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[11:12], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[13:14], ncol=2))
+do.call("grid.arrange", c(regions_vars_list[15], ncol=2))
+
+
+```
+
+
+
+
+
