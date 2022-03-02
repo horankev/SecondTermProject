@@ -43,48 +43,81 @@ party_colour <- party_colour
 # focus on change in votes
 # map this for different parties
 
-m1 <- ggplot() + geom_sf(data=all_elections, aes(fill=con_19-con_17)) + 
-  scale_fill_gradient2(low = "black", high = "#0087DC", na.value = "darkred") +
+all_elections <- all_elections %>% 
+  mutate(competed_con = factor(ifelse(is.na(con_19-con_17),"No","Yes")),
+         competed_lab = factor(ifelse(is.na(lab_19-lab_17),"No","Yes")),
+         competed_ld = factor(ifelse(is.na(ld_19-ld_17),"No","Yes")),
+         competed_green = factor(ifelse(is.na(green_19-green_17),"No","Yes")),
+         competed_pc = factor(ifelse(is.na(pc_19-pc_17),"No","Yes")),
+         competed_snp = factor(ifelse(is.na(snp_19-snp_17),"No","Yes")),)
+
+m1 <- ggplot() + geom_sf(data=all_elections, aes(fill=con_19-con_17, colour=competed_con)) + 
+  scale_fill_gradient2(low = "black", high = "#0087DC", na.value = "white") + 
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
        subtitle = "Conservative") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
   theme(plot.title = element_text(size=24), 
         plot.subtitle = element_text(size=16, colour="#0087DC"))
-m2 <- ggplot() + geom_sf(data=all_elections, aes(fill=lab_19-lab_17)) + 
-  scale_fill_gradient2(low = "black", high = "#DC241F", na.value = "darkred") +
+m2 <- ggplot() + geom_sf(data=all_elections, aes(fill=lab_19-lab_17, colour=competed_lab)) + 
+  scale_fill_gradient2(low = "black", high = "#DC241F", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
        subtitle = "Labour") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
   theme(plot.title = element_text(size=24), 
         plot.subtitle = element_text(size=16, colour="#DC241F"))
-m3 <- ggplot() + geom_sf(data=all_elections, aes(fill=ld_19-ld_17)) + 
-  scale_fill_gradient2(low = "black", high = "#FDBB30", na.value = "darkred") +
+m3 <- ggplot() + geom_sf(data=all_elections, aes(fill=ld_19-ld_17, colour=competed_ld)) + 
+  scale_fill_gradient2(low = "black", high = "#FDBB30", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
        subtitle = "Liberal Democrat") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
   theme(plot.title = element_text(size=24), 
         plot.subtitle = element_text(size=16, colour="orange4"))
-m4 <- ggplot() + geom_sf(data=all_elections, aes(fill=green_19-green_17)) + 
-  scale_fill_gradient2(low = "black", high = "#6AB023", na.value = "darkred") +
+m4 <- ggplot() + geom_sf(data=all_elections, aes(fill=green_19-green_17, colour=competed_green)) + 
+  scale_fill_gradient2(low = "black", high = "#6AB023", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
        subtitle = "Green Party") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
   theme(plot.title = element_text(size=24), 
         plot.subtitle = element_text(size=16, colour="#6AB023"))
-m5 <- ggplot() + geom_sf(data=all_elections, aes(fill=pc_19-pc_17)) + 
-  scale_fill_gradient2(low = "black", high = "#008142", na.value = "darkred") +
+m5 <- ggplot() + geom_sf(data=all_elections, aes(fill=pc_19-pc_17, colour=competed_pc)) + 
+  scale_fill_gradient2(low = "black", high = "#008142", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
        subtitle = "Plaid Cymru") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
   theme(plot.title = element_text(size=24), 
         plot.subtitle = element_text(size=16, colour="#008142"))
-m6 <- ggplot() + geom_sf(data=all_elections, aes(fill=snp_19-snp_17)) + 
-  scale_fill_gradient2(low = "black", high = "#FFFF00", na.value = "darkred") + 
+m6 <- ggplot() + geom_sf(data=all_elections, aes(fill=snp_19-snp_17, colour=competed_snp)) + 
+  scale_fill_gradient2(low = "black", high = "#FFFF00", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
        subtitle = "Scottish National Party") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
   theme(plot.title = element_text(size=24), 
         plot.subtitle = element_text(size=16, colour="#999900"))
+
 
 m1+m2
 m3+m4
@@ -196,14 +229,45 @@ lin_mod2 <- stepAIC(lin_mod1, direction = "both",
                       trace = FALSE)
 #summary(lin_mod2)
 
+#################################
+
+# compare with a model for the total conservative vote, not the change
+vars2 <- all_elections1 %>% 
+  dplyr::select(con_19, population_density, children, age_18_44, qual_none, health_very_bad, house_owned, household_one_person, 
+                ethnicity_white, unemployed, economically_inactive_student, retired, born_elsewhere, leave_hanretty) %>% 
+  st_drop_geometry()
+
+lin_mod_totalvote <- lm(con_19 ~ ., data = vars2)
+#summary(lin_mod_totalvote)
+
+# ?? find better selection of variables
+# Stepwise regression model
+lin_mod_totalvote2 <- stepAIC(lin_mod_totalvote, direction = "both", 
+                      trace = FALSE)
+#summary(lin_mod_totalvote2)
+
+#################################
+
+
+coef1 <- ggcoef(lin_mod_totalvote, exclude_intercept = TRUE, errorbar_color = "#0087DC") + 
+  labs(title="% Conservative Vote 2019", subtitle = "My Variables")
+coef2 <- ggcoef(lin_mod_totalvote2, exclude_intercept = TRUE, errorbar_color = "#0087DC") + 
+  labs(title="% Conservative Vote 2019", subtitle = "Step-Wise Variables")
+coef3 <- ggcoef(lin_mod1, exclude_intercept = TRUE, errorbar_color = "#0087DC") + 
+  labs(title="Change in Conservative % Vote", subtitle = "My Variables")
+coef4 <- ggcoef(lin_mod2, exclude_intercept = TRUE, errorbar_color = "#0087DC") + 
+  labs(title="Change in Conservative % Vote", subtitle = "Step-Wise Variables")
+
+coef1 / coef2
+coef3 / coef4
 ```
 
 ```{r, results="asis"}
 # present outputs of linear models
 
-stargazer(lin_mod1,lin_mod2, type = "html",  # to match our planned R Markdown output
-     title = "Comparing Linear Models", dep.var.labels="Change in Conservative % Vote, 2017-19", 
-     column.labels = c("(all vars)", "(step-wise vars)"))
+stargazer(lin_mod_totalvote, lin_mod_totalvote2, lin_mod1, lin_mod2, type = "html",  # to match our planned R Markdown output
+     title = "Comparing Linear Models", dep.var.labels=c("[% Conservative Vote 2019]","[Change in Conservative % Vote, 2017-19]"), 
+     column.labels = c("(all vars)", "(step-wise vars)", "(all vars)", "(step-wise vars)"))
 ```
 
 ```{r}
@@ -259,6 +323,8 @@ moran.mc(all_elections1$con_change[-c(253,570)], weights, nsim=999)
 # Based on the exploratory mapping, Moran scatterplot, and the global Moran’s I, there appears to be spatial autocorrelation in the dependent variable. This means that if there is a spatial lag process going on and we fit an OLS model our coefficients will be biased and inefficient. That is, the coefficient sizes and signs are not close to their true value and its standard errors are underestimated. This means trouble. Big trouble. Real big trouble.
 #################################
 ```
+
+
 ```{r, fig.height=6, fig.width=6}
 #################################
 # map LM residuals
@@ -282,7 +348,7 @@ ggplot() +
 
 moran.plot(lin_mod1$residuals[-c(253,570)], listw=weights, 
            xlab="Change in Vote", ylab="Neighbors Change in Vote",
-           main=c("Moran Scatterplot for Change in Conservative Vote 2017-19") )
+           main=c("Moran Scatterplot: Change in Conservative Vote Residuals") )
 
 moran.mc(lin_mod1$residuals[-c(253,570)], weights, nsim=999)
 
@@ -578,5 +644,167 @@ gwr.model$results$AICc
 gwr.model2$results$AICc
 
 #################################
+
+```
+
+```{r}
+
+# GWR of Principal Components using selected 14 variables
+
+# get percentage of variance in each component
+pov <- PCAresults$sdev^2/sum(PCAresults$sdev^2)
+
+pca_model_data <- cbind(all_elections1[,"con_change"], PCAresults$x) %>% 
+  st_drop_geometry()
+pca_model <- lm(con_change ~ ., pca_model_data)
+summary(pca_model)
+
+#run the gwr model
+gwr.model2 = gwr(con_change ~ ., data=pca_model_data, coords=coords, 
+                adapt=GWRbandwidth, hatmatrix=TRUE, se.fit=TRUE) 
+#print the results of the model
+gwr.model2
+
+GWR_results2 <- as.data.frame(gwr.model2$SDF)
+head(GWR_results2)
+
+all_elections1 <- all_elections1 %>% 
+  mutate(
+    GWR2coef_Intercept = GWR_results$X.Intercept.,    
+    GWR2coef_PC1 = GWR_results2$PC1,
+    GWR2coef_PC2 = GWR_results2$PC2,
+    GWR2coef_PC3 = GWR_results2$PC3,
+    GWR2coef_PC4 = GWR_results2$PC4,
+    GWR2coef_PC5 = GWR_results2$PC5,
+    GWR2coef_PC6 = GWR_results2$PC6,
+    GWR2coef_PC7 = GWR_results2$PC7,
+    GWR2coef_PC8 = GWR_results2$PC8,
+    GWR2coef_PC9 = GWR_results2$PC9,
+    GWR2coef_PC10 = GWR_results2$PC10,
+    GWR2coef_PC11 = GWR_results2$PC11,
+    GWR2coef_PC12 = GWR_results2$PC12,
+    GWR2coef_PC13 = GWR_results2$PC13,
+    GWR2coef_PC14 = GWR_results2$PC14,
+  )
+
+# function to plot coefficients
+plotfunc1 <- function(x) {
+  p_2019change_sp <- ggplot() + 
+    geom_sf(data = all_elections1, aes_string(fill = x)) +
+    scale_fill_gradient2(low="red",mid = "white", high="darkblue") +
+    labs(title = str_sub(x, start = 10)) + 
+    theme(legend.title = element_blank())
+}
+
+p1 <- plotfunc1("GWR2coef_Intercept")
+p2 <- plotfunc1("GWR2coef_PC1") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[1],4),"%"))
+p3 <- plotfunc1("GWR2coef_PC2") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[2],4),"%"))
+p4 <- plotfunc1("GWR2coef_PC3") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[3],4),"%"))
+p5 <- plotfunc1("GWR2coef_PC4") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[4],4),"%"))
+p6 <- plotfunc1("GWR2coef_PC5") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[5],4),"%"))
+p7 <- plotfunc1("GWR2coef_PC6") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[6],4),"%"))
+p8 <- plotfunc1("GWR2coef_PC7") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[7],4),"%"))
+p9 <- plotfunc1("GWR2coef_PC8")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[8],4),"%"))
+p10 <- plotfunc1("GWR2coef_PC9")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[9],4),"%"))
+p11 <- plotfunc1("GWR2coef_PC10")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[10],4),"%"))
+p12 <- plotfunc1("GWR2coef_PC11")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[11],4),"%"))
+p13 <- plotfunc1("GWR2coef_PC12")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[12],4),"%"))
+p14 <- plotfunc1("GWR2coef_PC13")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[13],4),"%"))
+p15 <- plotfunc1("GWR2coef_PC14")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[14],4),"%"))
+
+# using patchwork
+p1+p2+p3+p4+p5+p6+p7+p8+p9 + plot_layout(ncol = 3) + 
+  plot_annotation(title = "Coefficients for GWR of Principal Components (14 variables)",
+                  theme = theme(plot.title = element_text(size = 18))) & 
+  theme(text = element_text('mono'))
+p10+p11+p12+p13+p14+p15 + plot_spacer() + plot_spacer() + plot_spacer() + plot_layout(ncol = 3) + 
+  plot_annotation(title = "Coefficients for GWR of Principal Components (14 variables)", 
+                  theme = theme(plot.title = element_text(size = 18))) & 
+  theme(text = element_text('mono'))
+
+```
+
+```{r}
+# GWR of Principal Components using all census data
+vars_all_change <- all_elections1 %>% 
+  dplyr::select(24,25,35,65:249) %>% 
+  dplyr::select_if(~ !any(is.na(.))) %>% 
+  mutate(con_change = con_19-con_17) %>% 
+  dplyr::select(-con_19,-con_17,-con_change) %>% 
+  st_drop_geometry() %>% 
+  scale()
+
+PCAresults2 <- prcomp(vars_all_change, scale. = TRUE)
+
+# get percentage of variance in each component
+pov <- PCAresults2$sdev^2/sum(PCAresults2$sdev^2)
+
+pca_model_data <- cbind(all_elections1[,"con_change"], PCAresults2$x) %>% 
+  st_drop_geometry()
+pca_model <- lm(con_change ~ ., pca_model_data)
+summary(pca_model)
+
+#run the gwr model
+gwr.model2 = gwr(con_change ~ ., data=pca_model_data, coords=coords, 
+                adapt=GWRbandwidth, hatmatrix=TRUE, se.fit=TRUE) 
+#print the results of the model
+gwr.model2
+
+GWR_results2 <- as.data.frame(gwr.model2$SDF)
+head(GWR_results2)
+
+all_elections1 <- all_elections1 %>% 
+  mutate(
+    GWR2coef_Intercept = GWR_results$X.Intercept.,    
+    GWR2coef_PC1 = GWR_results2$PC1,
+    GWR2coef_PC2 = GWR_results2$PC2,
+    GWR2coef_PC3 = GWR_results2$PC3,
+    GWR2coef_PC4 = GWR_results2$PC4,
+    GWR2coef_PC5 = GWR_results2$PC5,
+    GWR2coef_PC6 = GWR_results2$PC6,
+    GWR2coef_PC7 = GWR_results2$PC7,
+    GWR2coef_PC8 = GWR_results2$PC8,
+    GWR2coef_PC9 = GWR_results2$PC9,
+    GWR2coef_PC10 = GWR_results2$PC10,
+    GWR2coef_PC11 = GWR_results2$PC11,
+    GWR2coef_PC12 = GWR_results2$PC12,
+    GWR2coef_PC13 = GWR_results2$PC13,
+    GWR2coef_PC14 = GWR_results2$PC14,
+  )
+
+# function to plot coefficients
+plotfunc1 <- function(x) {
+  p_2019change_sp <- ggplot() + 
+    geom_sf(data = all_elections1, aes_string(fill = x)) +
+    scale_fill_gradient2(low="red",mid = "white", high="darkblue") +
+    labs(title = str_sub(x, start = 10)) + 
+    theme(legend.title = element_blank())
+}
+
+p1 <- plotfunc1("GWR2coef_Intercept")
+p2 <- plotfunc1("GWR2coef_PC1") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[1],4),"%"))
+p3 <- plotfunc1("GWR2coef_PC2") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[2],4),"%"))
+p4 <- plotfunc1("GWR2coef_PC3") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[3],4),"%"))
+p5 <- plotfunc1("GWR2coef_PC4") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[4],4),"%"))
+p6 <- plotfunc1("GWR2coef_PC5") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[5],4),"%"))
+p7 <- plotfunc1("GWR2coef_PC6") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[6],4),"%"))
+p8 <- plotfunc1("GWR2coef_PC7") + labs(subtitle = paste("Variance Explained: ", 100*round(pov[7],4),"%"))
+p9 <- plotfunc1("GWR2coef_PC8")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[8],4),"%"))
+p10 <- plotfunc1("GWR2coef_PC9")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[9],4),"%"))
+p11 <- plotfunc1("GWR2coef_PC10")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[10],4),"%"))
+p12 <- plotfunc1("GWR2coef_PC11")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[11],4),"%"))
+p13 <- plotfunc1("GWR2coef_PC12")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[12],4),"%"))
+p14 <- plotfunc1("GWR2coef_PC13")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[13],4),"%"))
+p15 <- plotfunc1("GWR2coef_PC14")  + labs(subtitle = paste("Variance Explained: ", 100*round(pov[14],4),"%"))
+
+# using patchwork
+p1+p2+p3+p4+p5+p6+p7+p8+p9 + plot_layout(ncol = 3) + 
+  plot_annotation(title = "Coefficients for GWR of Principal Components (all census variables)",
+                  theme = theme(plot.title = element_text(size = 18))) & 
+  theme(text = element_text('mono'))
+p10+p11+p12+p13+p14+p15 + plot_spacer() + plot_spacer() + plot_spacer() + plot_layout(ncol = 3) + 
+  plot_annotation(title = "Coefficients for GWR of Principal Components (all census variables)", 
+                  theme = theme(plot.title = element_text(size = 18))) & 
+  theme(text = element_text('mono'))
 
 ```

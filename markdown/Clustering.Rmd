@@ -250,25 +250,10 @@ do.call("grid.arrange", c(regions_vars_list[10:15], ncol=3))
 # first, simplify the polygons for multiple plotting
 simplepolys <- st_simplify(all_elections_polygons, dTolerance = 1000)
 
-# define a colour palette with 25 colours to allow for more than 9 regions
-c25 <- c(
-  "dodgerblue2", "#E31A1C", # red
-  "green4",
-  "#6A3D9A", # purple
-  "#FF7F00", # orange
-  "black", "gold1",
-  "skyblue2", "#FB9A99", # lt pink
-  "palegreen2",
-  "#CAB2D6", # lt purple
-  "#FDBF6F", # lt orange
-  "gray70", "khaki2",
-  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
-  "darkturquoise", "green1", "yellow4", "yellow3",
-  "darkorange4", "brown"
-)
+
 regions_vars_list <- list() # make list to fill with regions
 for (i in seq_along(df.list)){
-  clus4 <- skater(edges = min_sp_tree[,1:2], data = df.list[[i]], ncuts = 7)
+  clus4 <- skater(edges = min_sp_tree[,1:2], data = df.list[[i]], ncuts = 3)
   
   vars_complete_sf2 <- vars_complete_sf[-c(253,570),] %>% 
   mutate(clus = factor(clus4$groups)) %>% 
@@ -277,10 +262,10 @@ for (i in seq_along(df.list)){
   
   regions_vars_list[[i]] <- ggplot() + geom_sf(data=vars_complete_sf2, aes(fill=clus)) + 
     coord_sf(datum = NA) + 
-    scale_fill_manual(values=c25) + 
+    scale_fill_brewer(palette="Dark2") + 
     labs(title = paste("Variables Group: ", 
                                str_to_title(str_sub(names(df.list[i]),start=6))),
-         subtitle = "Regionalisation: 8 regions", 
+         subtitle = "Regionalisation: 4 regions", 
          fill = "Zone")
 }
 
@@ -316,25 +301,10 @@ min_sp_tree <- mstree(weights)
 simplepolys <- st_simplify(all_elections_polygons, dTolerance = 1000) %>% 
   filter(region!="London")
 
-# a colour palette with 25 colours
-c25 <- c(
-  "dodgerblue2", "#E31A1C", # red
-  "green4",
-  "#6A3D9A", # purple
-  "#FF7F00", # orange
-  "black", "gold1",
-  "skyblue2", "#FB9A99", # lt pink
-  "palegreen2",
-  "#CAB2D6", # lt purple
-  "#FDBF6F", # lt orange
-  "gray70", "khaki2",
-  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
-  "darkturquoise", "green1", "yellow4", "yellow3",
-  "darkorange4", "brown"
-)
+
 regions_vars_list <- list() # make list to fill with regions
 for (i in seq_along(df.list)){
-  clus4 <- skater(edges = min_sp_tree[,1:2], data = df.list[[i]], ncuts = 7)
+  clus4 <- skater(edges = min_sp_tree[,1:2], data = df.list[[i]], ncuts = 3)
   
   vars_complete_sf2 <- vars_complete_sf[-c(253,570),] %>% 
   inner_join(simplepolys) %>% 
@@ -343,10 +313,10 @@ for (i in seq_along(df.list)){
   
   regions_vars_list[[i]] <- ggplot() + geom_sf(data=vars_complete_sf2 %>% filter(region!="London"), aes(fill=clus)) + 
     coord_sf(datum = NA) + 
-    scale_fill_manual(values=c25) + 
+    scale_fill_brewer(palette="Dark2") + 
     labs(title = paste("Variables Group: ", 
                                str_to_title(str_sub(names(df.list[i]),start=6))),
-         subtitle = "Regionalisation: 8 regions not including London", 
+         subtitle = "Regionalisation: 4 regions not including London", 
          fill = "Zone")
 }
 

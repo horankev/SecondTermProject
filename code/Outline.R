@@ -30,36 +30,80 @@ party_colour <- party_colour
 # focus on change in votes
 # map this for different parties
 
-ggplot() + geom_sf(data=all_elections, aes(fill=con_19-con_17)) + 
-  scale_fill_gradient2(low = "black", high = "#0087DC", na.value = "darkred") +
+all_elections <- all_elections %>% 
+  mutate(competed_con = factor(ifelse(is.na(con_19-con_17),"No","Yes")),
+         competed_lab = factor(ifelse(is.na(lab_19-lab_17),"No","Yes")),
+         competed_ld = factor(ifelse(is.na(ld_19-ld_17),"No","Yes")),
+         competed_green = factor(ifelse(is.na(green_19-green_17),"No","Yes")),
+         competed_pc = factor(ifelse(is.na(pc_19-pc_17),"No","Yes")),
+         competed_snp = factor(ifelse(is.na(snp_19-snp_17),"No","Yes")),)
+
+ggplot() + geom_sf(data=all_elections, aes(fill=con_19-con_17, colour=competed_con)) + 
+  scale_fill_gradient2(low = "black", high = "#0087DC", na.value = "white") + 
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
-       subtitle = "Conservative")
-ggplot() + geom_sf(data=all_elections, aes(fill=lab_19-lab_17)) + 
-  scale_fill_gradient2(low = "black", high = "#DC241F", na.value = "darkred") +
+       subtitle = "Conservative") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
+  theme(plot.title = element_text(size=24), 
+        plot.subtitle = element_text(size=16, colour="#0087DC"))
+ggplot() + geom_sf(data=all_elections, aes(fill=lab_19-lab_17, colour=competed_lab)) + 
+  scale_fill_gradient2(low = "black", high = "#DC241F", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
-       subtitle = "Labour")
-ggplot() + geom_sf(data=all_elections, aes(fill=ld_19-ld_17)) + 
-  scale_fill_gradient2(low = "black", high = "#FDBB30", na.value = "darkred") +
+       subtitle = "Labour") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
+  theme(plot.title = element_text(size=24), 
+        plot.subtitle = element_text(size=16, colour="#DC241F"))
+ggplot() + geom_sf(data=all_elections, aes(fill=ld_19-ld_17, colour=competed_ld)) + 
+  scale_fill_gradient2(low = "black", high = "#FDBB30", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
-       subtitle = "Liberal Democrat")
-ggplot() + geom_sf(data=all_elections, aes(fill=green_19-green_17)) + 
-  scale_fill_gradient2(low = "black", high = "#6AB023", na.value = "darkred") +
+       subtitle = "Liberal Democrat") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
+  theme(plot.title = element_text(size=24), 
+        plot.subtitle = element_text(size=16, colour="orange4"))
+ggplot() + geom_sf(data=all_elections, aes(fill=green_19-green_17, colour=competed_green)) + 
+  scale_fill_gradient2(low = "black", high = "#6AB023", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
-       subtitle = "Green Party")
-ggplot() + geom_sf(data=all_elections, aes(fill=pc_19-pc_17)) + 
-  scale_fill_gradient2(low = "black", high = "#008142", na.value = "darkred") +
+       subtitle = "Green Party") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
+  theme(plot.title = element_text(size=24), 
+        plot.subtitle = element_text(size=16, colour="#6AB023"))
+ggplot() + geom_sf(data=all_elections, aes(fill=pc_19-pc_17, colour=competed_pc)) + 
+  scale_fill_gradient2(low = "black", high = "#008142", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
-       subtitle = "Plaid Cymru")
-ggplot() + geom_sf(data=all_elections, aes(fill=snp_19-snp_17)) + 
-  scale_fill_gradient2(low = "black", high = "#FFFF00", na.value = "darkred") +
+       subtitle = "Plaid Cymru") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
+  theme(plot.title = element_text(size=24), 
+        plot.subtitle = element_text(size=16, colour="#008142"))
+ggplot() + geom_sf(data=all_elections, aes(fill=snp_19-snp_17, colour=competed_snp)) + 
+  scale_fill_gradient2(low = "black", high = "#FFFF00", na.value = "white") +
+  scale_colour_manual(values=(c("darkred","grey66"))) +   
   labs(fill = "Percentage",
+       colour = "Competed",
        title = "Vote Change 2017-19",
-       subtitle = "Scottish National Party")
+       subtitle = "Scottish National Party") + 
+  guides(fill = guide_colorbar(order = 1),
+         colour = guide_legend(order = 2)) + 
+  theme(plot.title = element_text(size=24), 
+        plot.subtitle = element_text(size=16, colour="#999900"))
 
 # since SNP completely dominant in Scotland, but does not run elsewhere
 # will treat England & Wales as one dataset "all_elections1"
@@ -439,4 +483,3 @@ gwr.model$results$AICc
 gwr.model2$results$AICc
 
 #################################
-
