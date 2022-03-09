@@ -9,12 +9,9 @@ output:
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
-https://link.springer.com/article/10.1007/s11135-017-0584-6
-
-The United Kingdom Independence Party’s (UKIP) success at recent British elections—notably for the European Parliament in 2014 and in the 2015 general election—is generally linked to the attractiveness of its right-wing populist appeal to those who have gained least from globalisation over recent decades in particular among: older people (especially males); those with few, if any, formal educational qualifications; and those living in areas with high levels of economic and social deprivation (see Goodwin and Milazzo 2015; Goodwin and Heath 2016; Clarke et al. 2017). To evaluate whether this was the case, the percentage of the votes cast for UKIP in each English and Welsh constituency at the 2015 general election was regressed against four variables derived from the 2011 census:Footnote3 the percentage of the adult population with either no or few (Level 1 only) educational qualifications;Footnote4 the percentage of the population aged 65 and over; the percentage of households with two or more deprivation characteristics;Footnote5 and the percentage of the adult population who were full-time students. (We are mindful of the need to avoid committing an ecological fallacy, because the relationships sought are between places not people.) The expectation was that each of the first three variables would be positively related to UKIP’s performance, whereas the fourth would be negatively linked. According to conventional analyses there is only a collinearity issue with two of those four variables, with VIF values of 3.8, 1.9, 3.7 and 1.7 respectively. The analyses reported here, however, show how the inter-relationships among all four have a confounding impact on the regression equation outcomes.
 
 ```{r}
-library(tidyverse)
+
 library(sf)
 library(parlitools)
 library(here)
@@ -40,6 +37,7 @@ library(sjmisc)
 library(sjlabelled)
 library(ggpubr)
 library(RColorBrewer)
+library(tidyverse)
 
 rm(list=ls())
 here()
@@ -81,7 +79,10 @@ all_elections <- all_elections %>%
   mutate(
     con_change = log(
       (con_19/(1-con_19)) / (con_17/(1-con_17))
-    ),
+    ), 
+    con_change17 = log(
+      (con_17/(1-con_17)) / (con_15/(1-con_15))
+    ), 
     marginality = ifelse(winner_17=="Conservative", majority_17,
                          ifelse(winner_17=="Labour", con_17-lab_17, 
                                 ifelse(winner_17=="Liberal Democrat", con_17-ld_17, 
@@ -117,523 +118,6 @@ vars <- all_elections1 %>%
   st_drop_geometry()
 ```
 
-<!-- ```{r, results='asis'} -->
-<!-- mod_qual <- lm(con_change ~ low_qual, data=vars) -->
-
-<!-- mod_age <- lm(con_change ~ over65, data=vars) -->
-
-<!-- mod_depr <- lm(con_change ~ deprived, data=vars) -->
-
-<!-- mod_stu <- lm(con_change ~ student, data=vars) -->
-
-<!-- #mod_leave <- lm(con_change ~ leave_EU, data=vars) -->
-
-<!-- #mod_dens <- lm(con_change ~ density, data=vars) -->
-
-<!-- # stargazer(mod_qual, mod_age, mod_depr, mod_stu, mod_leave, type = "html") -->
-
-
-
-<!-- pl <- c( -->
-<!--   #con_17 = "% Conservative 2017", -->
-<!--   low_qual = "Low Qualifications",  -->
-<!--   over65 = "Aged 65+",  -->
-<!--   deprived = "Deprivation Index", -->
-<!--   student = "Student", -->
-<!--   leave_EU = "Voted To Leave EU", -->
-<!--   density = "Population Density" -->
-<!-- ) -->
-
-<!-- tab_model( -->
-<!--   mod_qual, mod_age, mod_depr, mod_stu,  -->
-<!--   pred.labels = pl,  -->
-<!--   dv.labels = c("Model 1a", "Model 1b", "Model 1c", "Model 1d"), -->
-<!--   show.ci = FALSE,  -->
-<!--   show.p = TRUE,  -->
-<!--   show.intercept = FALSE,  -->
-<!--   show.obs = FALSE, -->
-<!--   transform = NULL -->
-<!-- ) -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- mod_qual3a <- lm(con_change ~ low_qual + over65, data=vars) -->
-
-<!-- mod_qual3b <- lm(con_change ~ low_qual + deprived, data=vars) -->
-
-<!-- mod_qual3c <- lm(con_change ~ low_qual + student, data=vars) -->
-
-<!-- tab_model( -->
-<!--   mod_qual3a, mod_qual3b, mod_qual3c, -->
-<!--   pred.labels = pl,  -->
-<!--   dv.labels = c("Model 3a", "Model 3b", "Model 3c"), -->
-<!--   show.ci = FALSE,  -->
-<!--   show.p = TRUE,  -->
-<!--   show.intercept = FALSE,  -->
-<!--   show.obs = FALSE, -->
-<!--   transform = NULL -->
-<!-- ) -->
-
-<!-- vif(mod_qual3a) -->
-<!-- vif(mod_qual3b) -->
-<!-- vif(mod_qual3c) -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- mod_qual4a <- lm(con_change ~ low_qual + over65 + deprived, data=vars) -->
-
-<!-- mod_qual4b <- lm(con_change ~ low_qual + over65 + student, data=vars) -->
-
-<!-- tab_model( -->
-<!--   mod_qual4a, mod_qual4b,  -->
-<!--   pred.labels = pl,  -->
-<!--   dv.labels = c("Model 4a", "Model 4b"), -->
-<!--   show.ci = FALSE,  -->
-<!--   show.p = TRUE,  -->
-<!--   show.intercept = FALSE,  -->
-<!--   show.obs = FALSE, -->
-<!--   transform = NULL -->
-<!-- ) -->
-
-<!-- vif(mod_qual4a) -->
-<!-- vif(mod_qual4b) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- mod_4vars <- lm(con_change ~ low_qual + over65 + student + deprived, data=vars) -->
-
-<!-- tab_model( -->
-<!--   mod_4vars,  -->
-<!--   pred.labels = pl,  -->
-<!--   dv.labels = c("Model 4 Variables"), -->
-<!--   show.ci = FALSE,  -->
-<!--   show.p = TRUE,  -->
-<!--   show.intercept = FALSE,  -->
-<!--   show.obs = FALSE, -->
-<!--   transform = NULL -->
-<!-- ) -->
-
-<!-- vif(mod_4vars) -->
-<!-- ``` -->
-
-
-<!-- #### Introduce PCA to the analysis -->
-
-<!-- ```{r} -->
-
-<!-- res.pca <- prcomp(vars %>%  -->
-<!--   dplyr::select(low_qual, over65, student, deprived), scale. = TRUE) -->
-
-<!-- fviz_eig(res.pca) -->
-
-<!-- fviz_pca_ind(res.pca, -->
-<!--              col.ind = "cos2", # Color by the quality of representation -->
-<!--              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), -->
-<!--              repel = TRUE     # Avoid text overlapping -->
-<!--              ) -->
-
-<!-- fviz_pca_var(res.pca, -->
-<!--              col.var = "contrib", # Color by contributions to the PC -->
-<!--              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), -->
-<!--              repel = TRUE     # Avoid text overlapping -->
-<!--              ) -->
-
-<!-- fviz_pca_biplot(res.pca, repel = TRUE, -->
-<!--                 col.var = "#2E9FDF", # Variables color -->
-<!--                 col.ind = "#696969"  # Individuals color -->
-<!--                 ) -->
-
-<!-- # Eigenvalues -->
-<!-- eig.val <- get_eigenvalue(res.pca) -->
-<!-- eig.val -->
-
-<!-- # Results for Variables -->
-<!-- res.var <- get_pca_var(res.pca) -->
-<!-- res.var$coord          # Coordinates -->
-<!-- res.var$contrib        # Contributions to the PCs -->
-<!-- res.var$cos2           # Quality of representation  -->
-
-<!-- # Results for individuals -->
-<!-- res.ind <- get_pca_ind(res.pca) -->
-<!-- head(res.ind$coord)          # Coordinates -->
-<!-- head(res.ind$contrib)        # Contributions to the PCs -->
-<!-- head(res.ind$cos2)           # Quality of representation  -->
-
-<!-- # Varimax rotation -->
-<!-- v <- varimax(res.var$coord[,1:2], normalize = TRUE) -->
-<!-- v$loadings -->
-<!-- v$rotmat -->
-
-<!-- scores <- res.ind$coord[,1:2] %*% v$rotmat -->
-<!-- head(scores) -->
-<!-- pca_df <- as.data.frame(cbind(all_elections1$con_change, scores)) -->
-<!-- colnames(pca_df) <- c("con_change", "PC1", "PC2") -->
-<!-- ``` -->
-
-
-<!-- #### Linear Model of PCA components 1 & 2 -->
-
-<!-- ```{r} -->
-<!-- mod_pca <- lm(con_change ~ PC1 + PC2, data = pca_df) -->
-<!-- summary(mod_pca) -->
-<!-- ``` -->
-
-
-<!-- #### Find relative value of variables -->
-
-<!-- ```{r} -->
-<!-- v$loadings -->
-<!-- mod_pca$coefficients -->
-
-<!-- coef_low_qual <- (v$loadings[1,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[1,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_over65 <- (v$loadings[2,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[2,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_student <- (v$loadings[3,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[3,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_deprived <- (v$loadings[4,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[4,2] * as.numeric(mod_pca$coefficients[3])) -->
-
-<!-- table <- rbind(coef_low_qual,coef_over65,coef_student,coef_deprived) -->
-<!-- table -->
-<!-- ``` -->
-
-<!-- ### Now, try this type of analysis with all variables  -->
-<!-- #### 1. LM of census variables  -->
-<!-- #### 2. GWR of census variables  -->
-<!-- #### 3. LM of PCA variables  -->
-<!-- #### 4. GWR of PCA  -->
-<!-- #### 5. GWR of GW PCA -->
-
-
-<!-- ### 1. LM of census variables -->
-
-<!-- ```{r} -->
-
-<!-- vars_all <- all_elections1 %>%  -->
-<!--   dplyr::select(con_change, low_qual, over65, student, deprived, density, leave_EU, health_very_bad, house_owned, household_one_person,  -->
-<!--                 ethnicity_white, unemployed, born_elsewhere) %>% st_drop_geometry() -->
-
-<!-- lin_mod_all <- lm(con_change ~ low_qual + over65 + student + deprived + density + leave_EU +  -->
-<!--                           health_very_bad + house_owned + household_one_person +  -->
-<!--                           ethnicity_white + unemployed + born_elsewhere,  -->
-<!--                         data=vars_all) -->
-
-<!-- summary(lin_mod_all) -->
-
-<!-- par(mfrow=c(2,2)) -->
-<!-- plot(lin_mod_all) -->
-<!-- ``` -->
-
-<!-- #### Check multicollinearity  -->
-
-
-<!-- ```{r, rows.print=13} -->
-<!-- vif_lin_mod_all <- as.data.frame(vif(lin_mod_all)) -->
-<!-- colnames(vif_lin_mod_all) <- c("VIF") -->
-<!-- vif_lin_mod_all -->
-
-<!-- ### -->
-
-<!-- lin_mod_1a <- lm(con_change ~ low_qual, data=vars_all) -->
-<!-- lin_mod_1b <- lm(con_change ~ over65, data=vars_all) -->
-<!-- lin_mod_1c <- lm(con_change ~ student, data=vars_all) -->
-<!-- lin_mod_1d <- lm(con_change ~ deprived, data=vars_all) -->
-<!-- lin_mod_1e <- lm(con_change ~ density, data=vars_all) -->
-<!-- lin_mod_1f <- lm(con_change ~ leave_EU, data=vars_all) -->
-<!-- #lin_mod_1g <- lm(con_change ~ con_17, data=vars_all) -->
-<!-- lin_mod_1h <- lm(con_change ~ health_very_bad, data=vars_all) -->
-<!-- lin_mod_1i <- lm(con_change ~ house_owned, data=vars_all) -->
-<!-- lin_mod_1j <- lm(con_change ~ household_one_person, data=vars_all) -->
-<!-- lin_mod_1k <- lm(con_change ~ ethnicity_white, data=vars_all) -->
-<!-- lin_mod_1l <- lm(con_change ~ unemployed, data=vars_all) -->
-<!-- lin_mod_1m <- lm(con_change ~ born_elsewhere, data=vars_all) -->
-
-<!-- table1 <-rbind(tidy(lin_mod_1a)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1b)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1c)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1d)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1e)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1f)[2,c(1:2,5)],  -->
-<!-- #              tidy(lin_mod_1g)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1h)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1i)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1j)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1k)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1l)[2,c(1:2,5)],  -->
-<!--               tidy(lin_mod_1m)[2,c(1:2,5)]) -->
-<!-- table1.1 <-rbind(glance(lin_mod_1a)[1],  -->
-<!--               glance(lin_mod_1b)[1],  -->
-<!--               glance(lin_mod_1c)[1],  -->
-<!--               glance(lin_mod_1d)[1],  -->
-<!--               glance(lin_mod_1e)[1],  -->
-<!--               glance(lin_mod_1f)[1],  -->
-<!-- #              glance(lin_mod_1g)[1],  -->
-<!--               glance(lin_mod_1h)[1],  -->
-<!--               glance(lin_mod_1i)[1],  -->
-<!--               glance(lin_mod_1j)[1],  -->
-<!--               glance(lin_mod_1k)[1],  -->
-<!--               glance(lin_mod_1l)[1],  -->
-<!--               glance(lin_mod_1m)[1])   -->
-<!-- table1.2 <- cbind(table1, table1.1) -->
-<!-- table1.2[,2:4] <- round(table1.2[,2:4], 3) -->
-
-
-<!-- ###### -->
-
-<!-- lin_mod_2a <- lm(con_change ~ leave_EU + low_qual, data=vars_all) -->
-<!-- lin_mod_2b <- lm(con_change ~ leave_EU + over65, data=vars_all) -->
-<!-- lin_mod_2c <- lm(con_change ~ leave_EU + student, data=vars_all) -->
-<!-- lin_mod_2d <- lm(con_change ~ leave_EU + deprived, data=vars_all) -->
-<!-- lin_mod_2e <- lm(con_change ~ leave_EU + density, data=vars_all) -->
-<!-- #lin_mod_2f <- lm(con_change ~ leave_EU + con_17, data=vars_all) -->
-<!-- lin_mod_2g <- lm(con_change ~ leave_EU + health_very_bad, data=vars_all) -->
-<!-- lin_mod_2h <- lm(con_change ~ leave_EU + house_owned, data=vars_all) -->
-<!-- lin_mod_2i <- lm(con_change ~ leave_EU + household_one_person, data=vars_all) -->
-<!-- lin_mod_2j <- lm(con_change ~ leave_EU + ethnicity_white, data=vars_all) -->
-<!-- lin_mod_2k <- lm(con_change ~ leave_EU + unemployed, data=vars_all) -->
-<!-- lin_mod_2l <- lm(con_change ~ leave_EU + born_elsewhere, data=vars_all) -->
-
-<!-- table2 <-rbind(tidy(lin_mod_2a)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2b)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2c)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2d)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2e)[3,c(1:2,5)],  -->
-<!-- #              tidy(lin_mod_2f)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2g)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2h)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2i)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2j)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2k)[3,c(1:2,5)],  -->
-<!--               tidy(lin_mod_2l)[3,c(1:2,5)]) -->
-<!-- table2.1 <-rbind(glance(lin_mod_2a)[1],  -->
-<!--               glance(lin_mod_2b)[1],  -->
-<!--               glance(lin_mod_2c)[1],  -->
-<!--               glance(lin_mod_2d)[1],  -->
-<!--               glance(lin_mod_2e)[1],  -->
-<!-- #              glance(lin_mod_2f)[1],  -->
-<!--               glance(lin_mod_2g)[1],  -->
-<!--               glance(lin_mod_2h)[1],  -->
-<!--               glance(lin_mod_2i)[1],  -->
-<!--               glance(lin_mod_2j)[1],  -->
-<!--               glance(lin_mod_2k)[1],  -->
-<!--               glance(lin_mod_2l)[1])   -->
-<!-- table2.2 <- cbind(table2, table2.1) -->
-<!-- table2.2[,2:4] <- round(table2.2[,2:4], 3) -->
-
-<!-- ### -->
-
-<!-- lin_mod_3a <- lm(con_change ~ leave_EU + deprived + low_qual, data=vars_all) -->
-<!-- lin_mod_3b <- lm(con_change ~ leave_EU + deprived + over65, data=vars_all) -->
-<!-- lin_mod_3c <- lm(con_change ~ leave_EU + deprived + student, data=vars_all) -->
-<!-- lin_mod_3d <- lm(con_change ~ leave_EU + deprived + density, data=vars_all) -->
-<!-- #lin_mod_3e <- lm(con_change ~ leave_EU + deprived + con_17, data=vars_all) -->
-<!-- lin_mod_3f <- lm(con_change ~ leave_EU + deprived + health_very_bad, data=vars_all) -->
-<!-- lin_mod_3g <- lm(con_change ~ leave_EU + deprived + house_owned, data=vars_all) -->
-<!-- lin_mod_3h <- lm(con_change ~ leave_EU + deprived + household_one_person, data=vars_all) -->
-<!-- lin_mod_3i <- lm(con_change ~ leave_EU + deprived + ethnicity_white, data=vars_all) -->
-<!-- lin_mod_3j <- lm(con_change ~ leave_EU + deprived + unemployed, data=vars_all) -->
-<!-- lin_mod_3k <- lm(con_change ~ leave_EU + deprived + born_elsewhere, data=vars_all) -->
-
-<!-- table3 <-rbind(tidy(lin_mod_3a)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3b)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3c)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3d)[4,c(1:2,5)],  -->
-<!-- #              tidy(lin_mod_3e)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3f)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3g)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3h)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3i)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3j)[4,c(1:2,5)],  -->
-<!--               tidy(lin_mod_3k)[4,c(1:2,5)]) -->
-<!-- table3.1 <-rbind(glance(lin_mod_3a)[1],  -->
-<!--               glance(lin_mod_3b)[1],  -->
-<!--               glance(lin_mod_3c)[1],  -->
-<!--               glance(lin_mod_3d)[1],  -->
-<!-- #              glance(lin_mod_3e)[1],  -->
-<!--               glance(lin_mod_3f)[1],  -->
-<!--               glance(lin_mod_3g)[1],  -->
-<!--               glance(lin_mod_3h)[1],  -->
-<!--               glance(lin_mod_3i)[1],  -->
-<!--               glance(lin_mod_3j)[1],  -->
-<!--               glance(lin_mod_3k)[1])   -->
-<!-- table3.2 <- cbind(table3, table3.1) -->
-<!-- table3.2[,2:4] <- round(table3.2[,2:4], 3) -->
-
-<!-- ### -->
-
-<!-- lin_mod_4a <- lm(con_change ~ leave_EU + deprived + unemployed + low_qual, data=vars_all) -->
-<!-- lin_mod_4b <- lm(con_change ~ leave_EU + deprived + unemployed + over65, data=vars_all) -->
-<!-- lin_mod_4c <- lm(con_change ~ leave_EU + deprived + unemployed + student, data=vars_all) -->
-<!-- lin_mod_4d <- lm(con_change ~ leave_EU + deprived + unemployed + density, data=vars_all) -->
-<!-- #lin_mod_4e <- lm(con_change ~ leave_EU + deprived + unemployed + con_17, data=vars_all) -->
-<!-- lin_mod_4f <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad, data=vars_all) -->
-<!-- lin_mod_4g <- lm(con_change ~ leave_EU + deprived + unemployed + house_owned, data=vars_all) -->
-<!-- lin_mod_4h <- lm(con_change ~ leave_EU + deprived + unemployed + household_one_person, data=vars_all) -->
-<!-- lin_mod_4i <- lm(con_change ~ leave_EU + deprived + unemployed + ethnicity_white, data=vars_all) -->
-<!-- lin_mod_4j <- lm(con_change ~ leave_EU + deprived + unemployed + born_elsewhere, data=vars_all) -->
-
-<!-- table4 <-rbind(tidy(lin_mod_4a)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4b)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4c)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4d)[5,c(1:2,5)],  -->
-<!-- #              tidy(lin_mod_4e)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4f)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4g)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4h)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4i)[5,c(1:2,5)],  -->
-<!--               tidy(lin_mod_4j)[5,c(1:2,5)]) -->
-<!-- table4.1 <-rbind(glance(lin_mod_4a)[1],  -->
-<!--               glance(lin_mod_4b)[1],  -->
-<!--               glance(lin_mod_4c)[1],  -->
-<!--               glance(lin_mod_4d)[1],  -->
-<!-- #              glance(lin_mod_4e)[1],  -->
-<!--               glance(lin_mod_4f)[1],  -->
-<!--               glance(lin_mod_4g)[1],  -->
-<!--               glance(lin_mod_4h)[1],  -->
-<!--               glance(lin_mod_4i)[1],  -->
-<!--               glance(lin_mod_4j)[1])   -->
-<!-- table4.2 <- cbind(table4, table4.1) -->
-<!-- table4.2[,2:4] <- round(table4.2[,2:4], 3) -->
-
-<!-- ### -->
-
-<!-- lin_mod_5a <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + low_qual, data=vars_all) -->
-<!-- lin_mod_5b <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + over65, data=vars_all) -->
-<!-- lin_mod_5c <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + student, data=vars_all) -->
-<!-- lin_mod_5d <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + density, data=vars_all) -->
-<!-- #lin_mod_5e <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + con_17, data=vars_all) -->
-<!-- lin_mod_5f <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned, data=vars_all) -->
-<!-- lin_mod_5g <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + household_one_person, data=vars_all) -->
-<!-- lin_mod_5h <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + ethnicity_white, data=vars_all) -->
-<!-- lin_mod_5i <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + born_elsewhere, data=vars_all) -->
-
-<!-- table5 <-rbind(tidy(lin_mod_5a)[6,c(1:2,5)],  -->
-<!--               tidy(lin_mod_5b)[6,c(1:2,5)],  -->
-<!--               tidy(lin_mod_5c)[6,c(1:2,5)],  -->
-<!--               tidy(lin_mod_5d)[6,c(1:2,5)],  -->
-<!-- #              tidy(lin_mod_5e)[6,c(1:2,5)],  -->
-<!--               tidy(lin_mod_5f)[6,c(1:2,5)],  -->
-<!--               tidy(lin_mod_5g)[6,c(1:2,5)],  -->
-<!--               tidy(lin_mod_5h)[6,c(1:2,5)],  -->
-<!--               tidy(lin_mod_5i)[6,c(1:2,5)]) -->
-<!-- table5.1 <-rbind(glance(lin_mod_5a)[1],  -->
-<!--               glance(lin_mod_5b)[1],  -->
-<!--               glance(lin_mod_5c)[1],  -->
-<!--               glance(lin_mod_5d)[1],  -->
-<!-- #              glance(lin_mod_5e)[1],  -->
-<!--               glance(lin_mod_5f)[1],  -->
-<!--               glance(lin_mod_5g)[1],  -->
-<!--               glance(lin_mod_5h)[1],  -->
-<!--               glance(lin_mod_5i)[1])   -->
-<!-- table5.2 <- cbind(table5, table5.1) -->
-<!-- table5.2[,2:4] <- round(table5.2[,2:4], 3) -->
-
-<!-- ### -->
-
-<!-- lin_mod_6a <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + low_qual, data=vars_all) -->
-<!-- lin_mod_6b <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + over65, data=vars_all) -->
-<!-- lin_mod_6c <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + student, data=vars_all) -->
-<!-- lin_mod_6d <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + density, data=vars_all) -->
-<!-- #lin_mod_6e <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + con_17, data=vars_all) -->
-<!-- lin_mod_6f <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + household_one_person, data=vars_all) -->
-<!-- lin_mod_6g <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + ethnicity_white, data=vars_all) -->
-<!-- lin_mod_6h <- lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + born_elsewhere, data=vars_all) -->
-
-<!-- table6 <-rbind(tidy(lin_mod_6a)[7,c(1:2,5)],  -->
-<!--               tidy(lin_mod_6b)[7,c(1:2,5)],  -->
-<!--               tidy(lin_mod_6c)[7,c(1:2,5)],  -->
-<!--               tidy(lin_mod_6d)[7,c(1:2,5)],  -->
-<!-- #              tidy(lin_mod_6e)[7,c(1:2,5)],  -->
-<!--               tidy(lin_mod_6f)[7,c(1:2,5)],  -->
-<!--               tidy(lin_mod_6g)[7,c(1:2,5)],  -->
-<!--               tidy(lin_mod_6h)[7,c(1:2,5)]) -->
-<!-- table6.1 <-rbind(glance(lin_mod_6a)[1],  -->
-<!--               glance(lin_mod_6b)[1],  -->
-<!--               glance(lin_mod_6c)[1],  -->
-<!--               glance(lin_mod_6d)[1],  -->
-<!-- #              glance(lin_mod_6e)[1],  -->
-<!--               glance(lin_mod_6f)[1],  -->
-<!--               glance(lin_mod_6g)[1],  -->
-<!--               glance(lin_mod_6h)[1])   -->
-<!-- table6.2 <- cbind(table6, table6.1) -->
-<!-- table6.2[,2:4] <- round(table6.2[,2:4], 3) -->
-
-<!-- ### -->
-<!-- ``` -->
-
-<!-- #### MODELS with each variable separately:  -->
-<!-- #### lm(con_change ~ 1 variable ,  data=vars_all)  -->
-
-
-<!-- ```{r, rows.print=13} -->
-<!-- table1.2 -->
-<!-- ``` -->
-
-<!-- #### MODELS with 2 vars:  -->
-<!-- #### lm(con_change ~ leave_EU + 1 variable ,  data=vars_all)  -->
-
-
-<!-- ```{r, rows.print=13} -->
-<!-- tidy(lin_mod_2a)[2,c(1:2,5)] -->
-<!-- table2.2 -->
-<!-- ``` -->
-
-<!-- #### MODELS with 3 vars:  -->
-<!-- #### lm(con_change ~ leave_EU + deprived + 1 variable ,  data=vars_all)  -->
-
-
-<!-- ```{r, rows.print=13} -->
-<!-- tidy(lin_mod_3a)[2:3,c(1:2,5)] -->
-<!-- table3.2 -->
-<!-- ``` -->
-
-<!-- #### MODELS with 4 vars:  -->
-<!-- #### lm(con_change ~ leave_EU + deprived + unemployed + 1 variable ,  data=vars_all)  -->
-
-
-<!-- ```{r, rows.print=13} -->
-<!-- tidy(lin_mod_4a)[2:4,c(1:2,5)] -->
-<!-- table4.2 -->
-<!-- ``` -->
-
-<!-- #### MODELS with 4 vars:  -->
-<!-- #### lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + 1 variable ,  data=vars_all)  -->
-
-
-<!-- ```{r, rows.print=13} -->
-<!-- tidy(lin_mod_5a)[2:5,c(1:2,5)] -->
-<!-- table5.2 -->
-<!-- ``` -->
-
-<!-- #### MODELS with 5 vars:  -->
-<!-- #### lm(con_change ~ leave_EU + deprived + unemployed + health_very_bad + house_owned + 1 variable ,  data=vars_all)  -->
-
-
-<!-- ```{r, rows.print=13} -->
-<!-- tidy(lin_mod_6a)[2:6,c(1:2,5)] -->
-<!-- table6.2 -->
-<!-- ``` -->
-
-<!-- #### Variable coefficients in each model   -->
-
-
-<!-- ```{r, rows.print=13} -->
-
-<!-- table_all <- table1.2[,1:2] %>%  -->
-<!--   left_join(table2.2[,1:2], by="term") %>%  -->
-<!--   left_join(table3.2[,1:2], by="term") %>%  -->
-<!--   left_join(table4.2[,1:2], by="term") %>%  -->
-<!--   left_join(table5.2[,1:2], by="term") %>%  -->
-<!--   left_join(table6.2[,1:2], by="term") -->
-<!-- colnames(table_all) <- (c("variable","1 Var Model","EU+","Deprived+","Unemployed+","BadHealth+","HouseOwn")) -->
-
-<!-- table_all -->
-
-<!-- ``` -->
-
  
 ```{r}
 
@@ -647,326 +131,7 @@ coords <- st_centroid(all_elections_polygons$geometry) %>%
 
 ```
 
-<!-- ### 2. GWR of census variables  -->
-
-<!-- #### Variables in Top 3 or 5 of Importance In Each Constituency -->
-
-<!-- #### Map whether each variable appears in top 3, 5 or 7 in each constituency -->
-
-<!-- ```{r, fig.height=12, fig.width=12} -->
-<!-- # FORCOMPARISON: Variables in Top 3 or 5 of Importance In Each Constituency -->
-<!-- # from standard GW linear regression -->
-
-<!-- GWRbandwidth_comparison <- gwr.sel(con_change ~ low_qual + over65 + student + deprived + density + leave_EU +  -->
-<!--                           health_very_bad + house_owned + household_one_person +  -->
-<!--                           ethnicity_white + unemployed + born_elsewhere,  -->
-<!--                         data=all_elections1, coords=coords, adapt=T) -->
-
-<!-- #run the gwr model -->
-<!-- gwr.model_comparison = gwr(con_change ~ low_qual + over65 + student + deprived + density + leave_EU +  -->
-<!--                           health_very_bad + house_owned + household_one_person +  -->
-<!--                           ethnicity_white + unemployed + born_elsewhere,  -->
-<!--                         data=all_elections1, coords=coords,  -->
-<!--                 adapt=GWRbandwidth_comparison, hatmatrix=TRUE, se.fit=TRUE) -->
-
-<!-- coeffs_comparison <- as.data.frame(gwr.model_comparison$SDF) %>%  -->
-<!--   dplyr::select(3:14) %>%  -->
-<!--   abs() %>%  -->
-<!--   cbind(all_elections1$constituency_name) %>%  -->
-<!--   cbind(all_elections_polygons$geometry) %>%  -->
-<!--   st_as_sf() %>%  -->
-<!--   pivot_longer(1:12) %>%  -->
-<!--   arrange(desc(value)) %>%  -->
-<!--   arrange(`all_elections1$constituency_name`) %>%  -->
-<!--   mutate(ranking = rep(1:12, 572)) -->
-
-<!-- # map for vars in top 3 -->
-<!-- coeffs_comparison <- coeffs_comparison %>%  -->
-<!--   mutate(fill = ifelse(ranking<3,as.character(name),"znot featured")) -->
-
-<!-- coeffs_comparison$fill <- as.factor(coeffs_comparison$fill) -->
-<!-- myColors <- c(brewer.pal(6, "Paired"), "grey") # take 11 from paired and add grey for not featured -->
-<!-- names(myColors) <- levels(coeffs_comparison$fill) -->
-
-<!-- custom_fill <- scale_fill_manual(name = "Variable", values = myColors) -->
-<!-- custom_color <- scale_color_manual(name = "Variable", values = myColors) -->
-
-<!-- ggplot(coeffs_comparison) +  -->
-<!--   geom_sf(aes(fill=fill, color=fill)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   facet_wrap(~name) +   -->
-<!--   custom_color + custom_fill +  -->
-<!--   labs(title = "Variables in Top 3 of Importance In Each Constituency") -->
-
-<!-- # map for vars in top 5 -->
-<!-- coeffs_comparison <- coeffs_comparison %>%  -->
-<!--   mutate(fill = ifelse(ranking<5,as.character(name),"znot featured")) -->
-
-<!-- coeffs_comparison$fill <- as.factor(coeffs_comparison$fill) -->
-<!-- myColors <- c(brewer.pal(9, "Paired"), "grey") # take 11 from paired and add grey for not featured -->
-<!-- names(myColors) <- levels(coeffs_comparison$fill) -->
-
-<!-- custom_fill <- scale_fill_manual(name = "Variable", values = myColors) -->
-<!-- custom_color <- scale_color_manual(name = "Variable", values = myColors) -->
-
-<!-- ggplot(coeffs_comparison) +  -->
-<!--   geom_sf(aes(fill=fill, color=fill)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   facet_wrap(~name) +   -->
-<!--   custom_color + custom_fill +  -->
-<!--   labs(title = "Variables in Top 5 of Importance In Each Constituency") -->
-<!-- ``` -->
-
-<!-- #### Map most important variable in each constituency -->
-
-<!-- ```{r, fig.height=12, fig.width=12} -->
-<!-- # most important var each constituency -->
-<!-- p_comparison <- ggplot(coeffs_comparison %>% filter(ranking==1)) + geom_sf(aes(fill=name)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   scale_fill_brewer(palette = "Paired") +  -->
-<!--   labs(title = "Most Important Variable Per Constituency", subtitle = "based on GWR of census variables") -->
-<!-- p_comparison -->
-
-<!-- #define custom color scale for more consistent mapping... -->
-<!-- coeffs_comparison$name <- as.factor(coeffs_comparison$name) -->
-<!-- myColors <- c(brewer.pal(13, "Paired"), "black") -->
-<!-- names(myColors) <- levels(coeffs_comparison$name) -->
-<!-- custom_colors <- scale_fill_manual(name = "Variable", values = myColors) -->
-
-<!-- # most important var each constituency -->
-<!-- p1_comparison <- ggplot(coeffs_comparison %>% filter(ranking==1)) + geom_sf(aes(fill=name)) + -->
-<!--   custom_colors +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   labs(subtitle = "Most Important Variable Per Constituency") -->
-
-<!-- # 2nd most important var each constituency -->
-<!-- p2_comparison <- ggplot(coeffs_comparison %>% filter(ranking==2)) + geom_sf(aes(fill=name)) + -->
-<!--   custom_colors +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   labs(subtitle = "2nd Most Important") -->
-
-<!-- # 3rd most important var each constituency -->
-<!-- p3_comparison <- ggplot(coeffs_comparison %>% filter(ranking==3)) + geom_sf(aes(fill=name)) + -->
-<!--   custom_colors +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   labs(subtitle = "3rd Most Important") -->
-
-<!-- # 4th most important var each constituency -->
-<!-- p4_comparison <- ggplot(coeffs_comparison %>% filter(ranking==4)) + geom_sf(aes(fill=name)) + -->
-<!--   custom_colors +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   labs(subtitle = "4th Most Important") -->
-
-
-
-<!-- ggarrange(p1_comparison, p2_comparison, p3_comparison, p4_comparison, ncol=2, nrow=2, common.legend = TRUE, legend="bottom") +  -->
-<!--   labs(title = "Variable Order Of Importance") -->
-<!-- ``` -->
-
-
-<!-- ### 3. LM of PCA components (global components) -->
-
-<!-- #### PCA to produce non collinear components  -->
-
-
-<!-- ```{r} -->
-<!-- vars2 <- all_elections1 %>%  -->
-<!--   dplyr::select(low_qual, over65, student, deprived, density, leave_EU, health_very_bad, house_owned, household_one_person,  -->
-<!--                 ethnicity_white, unemployed, born_elsewhere) %>% st_drop_geometry() -->
-
-<!-- res.pca <- prcomp(vars2, scale. = TRUE, ) -->
-
-<!-- fviz_eig(res.pca) -->
-
-<!-- fviz_pca_ind(res.pca, -->
-<!--              col.ind = "cos2", # Color by the quality of representation -->
-<!--              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), -->
-<!--              repel = TRUE     # Avoid text overlapping -->
-<!--              ) -->
-
-<!-- fviz_pca_var(res.pca, -->
-<!--              col.var = "contrib", # Color by contributions to the PC -->
-<!--              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), -->
-<!--              repel = TRUE     # Avoid text overlapping -->
-<!--              ) -->
-
-<!-- fviz_pca_biplot(res.pca, repel = TRUE, -->
-<!--                 col.var = "#2E9FDF", # Variables color -->
-<!--                 col.ind = "#696969"  # Individuals color -->
-<!--                 ) -->
-
-<!-- # Results for Variables -->
-<!-- res.var <- get_pca_var(res.pca) -->
-<!-- # res.var$coord          # Coordinates -->
-<!-- # res.var$contrib        # Contributions to the PCs -->
-<!-- # res.var$cos2           # Quality of representation  -->
-
-<!-- # Results for individuals -->
-<!-- res.ind <- get_pca_ind(res.pca) -->
-<!-- # head(res.ind$coord)          # Coordinates -->
-<!-- # head(res.ind$contrib)        # Contributions to the PCs -->
-<!-- # head(res.ind$cos2)           # Quality of representation  -->
-
-<!-- # Varimax rotation -->
-<!-- v <- varimax(res.var$coord[,1:2], normalize = TRUE) -->
-<!-- # v$loadings -->
-<!-- # v$rotmat -->
-
-<!-- scores <- res.ind$coord[,1:2] %*% v$rotmat -->
-<!-- #head(scores) -->
-<!-- pca_df <- as.data.frame(cbind(all_elections1$con_change, scores)) -->
-<!-- colnames(pca_df) <- c("con_change", "PC1", "PC2") -->
-
-
-<!-- mod_pca <- lm(con_change ~ PC1 + PC2, data = pca_df) -->
-<!-- summary(mod_pca) -->
-
-<!-- coef_low_qual <- (v$loadings[1,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[1,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_over65 <- (v$loadings[2,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[2,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_student <- (v$loadings[3,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[3,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_deprived <- (v$loadings[4,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[4,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_density <- (v$loadings[5,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[5,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_leave_EU <- (v$loadings[6,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[6,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- #coef_cons17 <- (v$loadings[7,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!-- #  (v$loadings[7,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_health_very_bad <- (v$loadings[7,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[7,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_house_owned <- (v$loadings[8,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[8,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_household_one_person <- (v$loadings[9,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[9,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_ethnicity_white <- (v$loadings[10,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[10,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_unemployed <- (v$loadings[11,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[11,2] * as.numeric(mod_pca$coefficients[3])) -->
-<!-- coef_born_elsewhere <- (v$loadings[12,1] * as.numeric(mod_pca$coefficients[2])) +  -->
-<!--   (v$loadings[12,2] * as.numeric(mod_pca$coefficients[3])) -->
-
-
-
-<!-- table <- as.data.frame(rbind(coef_low_qual,coef_over65,coef_student,coef_deprived,coef_density,coef_leave_EU, -->
-<!-- #                             coef_cons17, -->
-<!--                coef_health_very_bad, coef_house_owned, coef_household_one_person, -->
-<!--                coef_ethnicity_white, coef_unemployed, coef_born_elsewhere)) %>%  -->
-<!--   cbind(names(vars2))  -->
-
-<!-- colnames(table) <- c("Coefficient","Variable") -->
-
-<!-- table$Variable <- factor(table$Variable, levels = table$Variable[order(table$Coefficient)]) -->
-
-<!-- ggplot(table %>% arrange(Coefficient))+geom_count(aes(y=Coefficient, x=Variable, colour=Variable))  +  -->
-<!--   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +  -->
-<!--   geom_hline(yintercept = 0) +  -->
-<!--   theme(legend.position="none") -->
-
-<!-- ``` -->
-
-<!-- ### 4. GWR of PCA components (global components) -->
-
-<!-- ```{r} -->
-
-<!-- GWRbandwidth <- gwr.sel(con_change ~ PC1 + PC2,  -->
-<!--                         data=pca_df, coords=coords, adapt=T) -->
-
-<!-- GWRbandwidth -->
-
-<!-- #run the gwr model -->
-<!-- gwr.model = gwr(con_change ~ PC1 + PC2,  -->
-<!--                         data=pca_df, coords=coords,  -->
-<!--                 adapt=GWRbandwidth, hatmatrix=TRUE, se.fit=TRUE)  -->
-
-<!-- ``` -->
-
-
-<!-- ```{r} -->
-
-<!-- GWR_results <- as.data.frame(gwr.model$SDF) -->
-<!-- head(GWR_results) -->
-
-<!-- all_elections1 <- all_elections1 %>%  -->
-<!--   mutate( -->
-<!--     GWRcoef_Intercept = GWR_results$X.Intercept.,     -->
-<!--     GWRcoef_PC1 = GWR_results$PC1, -->
-<!--     GWRcoef_PC2 = GWR_results$PC2 -->
-<!--   ) -->
-
-<!-- ``` -->
-
-
-<!-- ```{r} -->
-<!-- coef_low_qual_gw <- (v$loadings[1,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[1,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_over65_gw <- (v$loadings[2,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[2,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_student_gw <- (v$loadings[3,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[3,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_deprived_gw <- (v$loadings[4,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[4,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_density_gw <- (v$loadings[5,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[5,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_leave_EU_gw <- (v$loadings[6,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[6,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- #coef_cons17_gw <- (v$loadings[7,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!-- #  (v$loadings[7,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_health_very_bad_gw <- (v$loadings[7,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[7,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_house_owned_gw <- (v$loadings[8,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[8,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_household_one_person_gw <- (v$loadings[9,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[9,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_ethnicity_white_gw <- (v$loadings[10,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[10,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_unemployed_gw <- (v$loadings[11,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[11,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-<!-- coef_born_elsewhere_gw <- (v$loadings[12,1] * as.numeric(all_elections1$GWRcoef_PC1)) +  -->
-<!--   (v$loadings[12,2] * as.numeric(all_elections1$GWRcoef_PC2)) -->
-
-
-
-<!-- temp_table <- cbind(coef_low_qual_gw, coef_over65_gw, coef_student_gw, coef_deprived_gw,  -->
-<!--                coef_density_gw, coef_leave_EU_gw,  -->
-<!-- #               coef_cons17_gw, -->
-<!--                coef_health_very_bad_gw, coef_house_owned_gw, coef_household_one_person_gw, -->
-<!--                coef_ethnicity_white_gw, coef_unemployed_gw, coef_born_elsewhere_gw) %>%  -->
-<!--   as.data.frame() -->
-<!-- all_elections1 <- cbind(all_elections1, temp_table[,-1]) -->
-
-<!-- ``` -->
-
-<!-- #### Plot which variable is of highest importance in each constituency  -->
-<!-- #### based on Global PCA in GW regression -->
-
-<!-- ```{r, fig.width=12, fig.height=12} -->
-<!-- newcols <- all_elections1[,315:326] %>%  -->
-<!--   st_drop_geometry() %>%  -->
-<!--   abs() -->
-<!-- all_elections_polygons$highest_imp <- colnames(newcols)[apply(newcols,1,which.max)] -->
-
-<!-- ggplot(all_elections_polygons) + geom_sf(aes(fill=highest_imp)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   scale_fill_brewer(palette = "Paired") +  -->
-<!--   labs(title = "Most Important Variable Per Constituency", subtitle = "based on GWR of global PCA components") -->
-<!-- ``` -->
-
-
-
-############################################
-### 5. GWR of GW PCA components (local components) 
-############################################
+### GWR of GW PCA components (local components) 
 
 
 ```{r}
@@ -992,8 +157,7 @@ loadings <- pca.gw$loadings # first and second components
 
 ```
 
-#### Plot which variable is of highest importance in each constituency 
-#### based on local PCA in GW regression
+### Coefficient value in each constituency
 
 ```{r, fig.height=12, fig.width=12}
 
@@ -1039,6 +203,7 @@ gwr.model.gwpca = gwr(con_change ~ PC1gw + PC2gw,
                         data=pcagw.df, coords=coords, 
                 adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
 
+
 # examine first two components
 head(gwr.model.gwpca$SDF$PC1gw)
 head(gwr.model.gwpca$SDF$PC2gw)
@@ -1050,15 +215,15 @@ coef_student_gwpca <- vector()
 coef_deprived_gwpca <- vector()
 coef_density_gwpca <- vector()
 coef_leave_EU_gwpca <- vector()
-coef_marg_gwpca <- vector()
 coef_health_very_bad_gwpca <- vector()
 coef_house_owned_gwpca <- vector()
 coef_household_one_person_gwpca <- vector()
 coef_ethnicity_white_gwpca <- vector()
 coef_unemployed_gwpca <- vector()
 coef_born_elsewhere_gwpca <- vector()
+coef_marg_gwpca <- vector()
 
-# calculate importance of each variable by same technique as before
+# calculate coefficient for each variable by same technique as before
 for (i in 1:571) {
 coef_low_qual_gwpca[i] <- as.vector((loadings[i,1,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,1,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
@@ -1072,276 +237,153 @@ coef_density_gwpca[i] <- as.vector((loadings[i,5,1] * as.numeric(gwr.model.gwpca
   (loadings[i,5,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
 coef_leave_EU_gwpca[i] <- as.vector((loadings[i,6,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,6,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
-coef_marg_gwpca[i] <- as.vector((loadings[i,7,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+coef_health_very_bad_gwpca[i] <- as.vector((loadings[i,7,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,7,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
-coef_health_very_bad_gwpca[i] <- as.vector((loadings[i,8,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+coef_house_owned_gwpca[i] <- as.vector((loadings[i,8,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,8,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
-coef_house_owned_gwpca[i] <- as.vector((loadings[i,9,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+coef_household_one_person_gwpca[i] <- as.vector((loadings[i,9,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,9,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
-coef_household_one_person_gwpca[i] <- as.vector((loadings[i,10,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+coef_ethnicity_white_gwpca[i] <- as.vector((loadings[i,10,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,10,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
-coef_ethnicity_white_gwpca[i] <- as.vector((loadings[i,11,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+coef_unemployed_gwpca[i] <- as.vector((loadings[i,11,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,11,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
-coef_unemployed_gwpca[i] <- as.vector((loadings[i,12,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+coef_born_elsewhere_gwpca[i] <- as.vector((loadings[i,12,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,12,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
-coef_born_elsewhere_gwpca[i] <- as.vector((loadings[i,13,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+coef_marg_gwpca[i] <- as.vector((loadings[i,13,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
   (loadings[i,13,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
 }
 
 # bind into a table
 gwr_gwpca_table <- as.data.frame(cbind(coef_low_qual_gwpca, coef_over65_gwpca, coef_student_gwpca, coef_deprived_gwpca,
-               coef_density_gwpca, coef_leave_EU_gwpca, 
-               coef_marg_gwpca,
-               coef_health_very_bad_gwpca, coef_house_owned_gwpca, coef_household_one_person_gwpca,
-               coef_ethnicity_white_gwpca, coef_unemployed_gwpca, coef_born_elsewhere_gwpca))
-
-# insert into all_elections1
-all_elections1 <- cbind(all_elections1, gwr_gwpca_table) 
-
-# find largest absolute value variable for each row
-newcols <- all_elections1[,306:318] %>% 
-  st_drop_geometry() %>% 
-  abs()
-all_elections_polygons$highest_imp <- colnames(newcols)[apply(newcols,1,which.max)]
-
-                          
-```
+               coef_density_gwpca, coef_leave_EU_gwpca, coef_health_very_bad_gwpca, coef_house_owned_gwpca, 
+               coef_household_one_person_gwpca, coef_ethnicity_white_gwpca, 
+               coef_unemployed_gwpca, coef_born_elsewhere_gwpca, coef_marg_gwpca)) %>% 
+  apply(2,exp)
 
 
-
-<!-- #### Map most important variable in each constituency -->
-
-<!-- ```{r, fig.height=12, fig.width=12} -->
-
-
-
-<!-- # subset just the importance variables and the geometry -->
-<!-- # pivot longer so I can order them 1:13  -->
-<!-- # make factors for ease of mapping -->
-<!-- subtable <- all_elections1[,c(4,326:337)] %>%  -->
-<!--   st_drop_geometry() %>%  -->
-<!--   cbind(all_elections_polygons$geometry) %>%  pivot_longer(2:13) %>%  -->
-<!--   arrange(desc(abs(value))) %>%  -->
-<!--   arrange(constituency_name) %>%  -->
-<!--   mutate(ranking = rep(1:12, 572)) %>% -->
-<!--   st_as_sf() -->
-<!-- subtable$name <- as.factor(subtable$name) -->
-
-<!-- # most important var each constituency -->
-<!-- p <- ggplot(subtable %>% filter(ranking==1)) + geom_sf(aes(fill=name)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   scale_fill_brewer(palette = "Paired") +  -->
-<!--   labs(title = "Most Important Variable Per Constituency", subtitle = "based on GWR of local GWPCA components") -->
-<!-- p -->
-
-<!-- #define custom color scale for more consistent mapping... -->
-<!-- subtable$name <- as.factor(subtable$name) -->
-<!-- myColors <- c(brewer.pal(12, "Paired"), "black") -->
-<!-- names(myColors) <- levels(subtable$name) -->
-<!-- custom_colors <- scale_fill_manual(name = "Variable", values = myColors) -->
-
-<!-- # most important var each constituency -->
-<!-- p1 <- ggplot(subtable %>% filter(ranking==1)) + geom_sf(aes(fill=name)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   custom_colors +  -->
-<!--   labs(subtitle = "Most Important Variable Per Constituency") -->
-
-<!-- # 2nd most important var each constituency -->
-<!-- p2 <- ggplot(subtable %>% filter(ranking==2)) + geom_sf(aes(fill=name)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   custom_colors +  -->
-<!--   labs(subtitle = "2nd Most Important") -->
-
-<!-- # 3rd most important var each constituency -->
-<!-- p3 <- ggplot(subtable %>% filter(ranking==3)) + geom_sf(aes(fill=name)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   custom_colors +  -->
-<!--   labs(subtitle = "3rd Most Important") -->
-
-<!-- # 4th most important var each constituency -->
-<!-- p4 <- ggplot(subtable %>% filter(ranking==4)) + geom_sf(aes(fill=name)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   custom_colors +  -->
-<!--   labs(subtitle = "4th Most Important") -->
-
-
-<!-- ggarrange(p1, p2, p3, p4, ncol=2, nrow=2, common.legend = TRUE, legend="bottom") +  -->
-<!--   labs(title = "Variable Order Of Importance") -->
-
-<!-- ``` -->
-
-<!-- #### Map whether each variable appears in top 3, 5 or 7 in each constituency -->
-
-<!-- ```{r, fig.height=12, fig.width=12} -->
-
-<!-- # map for vars in top 3 -->
-<!-- subtable1 <- subtable %>%  -->
-<!--   mutate(fill = ifelse(ranking<3,as.character(name),"not featured")) -->
-
-<!-- # make fill palette -->
-<!-- subtable1$fill <- as.factor(subtable1$fill) -->
-<!-- myColors <- c(brewer.pal(8, "Paired"), "grey") # take 7 from paired and add grey for not featured -->
-<!-- names(myColors) <- levels(subtable1$fill) -->
-
-<!-- custom_fill <- scale_fill_manual(name = "Variable", values = myColors) -->
-<!-- custom_color <- scale_color_manual(name = "Variable", values = myColors) -->
-
-<!-- ggplot(subtable1) +  -->
-<!--   geom_sf(aes(fill=fill, color=fill)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   facet_wrap(~name) +   -->
-<!--   custom_color + custom_fill +  -->
-<!--   labs(title = "Variables in Top 3 of Importance In Each Constituency") -->
-
-<!-- # map for vars in top 5 -->
-<!-- subtable1 <- subtable %>%  -->
-<!--   mutate(fill = ifelse(ranking<5,as.character(name),"not featured")) -->
-
-<!-- subtable1$fill <- as.factor(subtable1$fill) -->
-<!-- myColors <- c(brewer.pal(10, "Paired"), "grey") # take 11 from paired and add grey for not featured -->
-<!-- names(myColors) <- levels(subtable1$fill) -->
-
-<!-- custom_fill <- scale_fill_manual(name = "Variable", values = myColors) -->
-<!-- custom_color <- scale_color_manual(name = "Variable", values = myColors) -->
-
-<!-- ggplot(subtable1) +  -->
-<!--   geom_sf(aes(fill=fill, color=fill)) +  -->
-<!--   coord_sf(datum = NA) +   -->
-<!--   theme_light() + -->
-<!--   facet_wrap(~name) +   -->
-<!--   custom_color + custom_fill +  -->
-<!--   labs(title = "Variables in Top 5 of Importance In Each Constituency") -->
-
-<!-- # # map for vars in top 7 -->
-<!-- # subtable1 <- subtable %>%  -->
-<!-- #   mutate(fill = ifelse(ranking<7,as.character(name),"not featured")) -->
-<!-- #  -->
-<!-- # subtable1$fill <- as.factor(subtable1$fill) -->
-<!-- # myColors <- c(brewer.pal(11, "Paired"), "black", "grey") # take 11 from paired and add -->
-<!-- # names(myColors) <- levels(subtable1$fill) -->
-<!-- #  -->
-<!-- # custom_fill <- scale_fill_manual(name = "Variable", values = myColors) -->
-<!-- # custom_color <- scale_color_manual(name = "Variable", values = myColors) -->
-<!-- #  -->
-<!-- # ggplot(subtable1) +  -->
-<!-- #   geom_sf(aes(fill=fill, color=fill)) +  -->
-<!-- #   coord_sf(datum = NA) +   -->
-<!-- #   theme_light() + -->
-<!-- #   facet_wrap(~name) +   -->
-<!-- #   custom_color + custom_fill +  -->
-<!-- #   labs(title = "Variables in Top 7 of Importance In Each Constituency") -->
-<!-- ``` -->
-
-#### Map the coefficients from the GWR of GW PCA
-
-
-```{r, fig.height=12, fig.width=12}
-
-only_variables <- all_elections1[,313:325] %>% 
+# insert into all_elections1 with polygons
+all_elections1 <- cbind(all_elections1, gwr_gwpca_table) %>% 
   st_drop_geometry() %>% 
   cbind(all_elections_polygons$geometry) %>% 
   st_as_sf()
+  
 
-p1 <- ggplot(only_variables) + geom_sf(aes(fill = coef_low_qual_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Low Qualifications", 
-       fill = "Coefficient")
-p2 <- ggplot(only_variables) + geom_sf(aes(fill = coef_born_elsewhere_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Born Elsewhere", 
-       fill = "Coefficient")
-p3 <- ggplot(only_variables) + geom_sf(aes(fill = coef_density_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Density", 
-       fill = "Coefficient")
-p4 <- ggplot(only_variables) + geom_sf(aes(fill = coef_deprived_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Deprivation", 
-       fill = "Coefficient")
-p5 <- ggplot(only_variables) + geom_sf(aes(fill = coef_ethnicity_white_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Ethnicity White", 
-       fill = "Coefficient")
-p6 <- ggplot(only_variables) + geom_sf(aes(fill = coef_health_very_bad_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Health Very Bad", 
-       fill = "Coefficient")
-p7 <- ggplot(only_variables) + geom_sf(aes(fill = coef_house_owned_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "House Owned", 
-       fill = "Coefficient")
-p8 <- ggplot(only_variables) + geom_sf(aes(fill = coef_household_one_person_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "One Person Household", 
-       fill = "Coefficient")
-p9 <- ggplot(only_variables) + geom_sf(aes(fill = coef_leave_EU_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Low Qualifications", 
-       fill = "Coefficient")
-p10 <- ggplot(only_variables) + geom_sf(aes(fill = coef_over65_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Age Over 65", 
-       fill = "Coefficient")
-p11 <- ggplot(only_variables) + geom_sf(aes(fill = coef_student_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Students", 
-       fill = "Coefficient")
-p12 <- ggplot(only_variables) + geom_sf(aes(fill = coef_unemployed_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Unemployed", 
-       fill = "Coefficient")
-p13 <- ggplot(only_variables) + geom_sf(aes(fill = coef_marg_gwpca)) + 
-  scale_fill_gradient2(low="red", high="blue", midpoint = 0) + 
-  coord_sf(datum = NA) + 
-  theme_light() +
-  labs(title = "Marginality", 
-       fill = "Coefficient")
+```
 
-ggarrange(p1, p2, p3, p4, ncol=2, nrow=2, common.legend = TRUE, legend="right") + 
-  labs(title = "Coefficient from GWR of GW PCA Components")
-ggarrange(p5, p6, p7, p8, ncol=2, nrow=2, common.legend = TRUE, legend="right") + 
-  labs(title = "Coefficient from GWR of GW PCA Components")
-ggarrange(p9, p10, p11, nrow=1, common.legend = TRUE, legend="right") + 
-  labs(title = "Coefficient from GWR of GW PCA Components")
-ggarrange(p12, p13,nrow=1, common.legend = TRUE, legend="right") + 
-  labs(title = "Coefficient from GWR of GW PCA Components")
+
+```{r, fig.height=6, fig.width=12}
+
+
+# coefficient value in each consitituency
+
+p_low_qual_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_low_qual_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_over65_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_over65_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_student_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_student_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_deprived_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_deprived_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_density_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_density_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_leave_EU_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_leave_EU_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_health_very_bad_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_health_very_bad_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_house_owned_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_house_owned_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_household_one_person_19change <- ggplot(all_elections1) + 
+  geom_sf(aes(fill=coef_household_one_person_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_ethnicity_white_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_ethnicity_white_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_unemployed_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_unemployed_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_born_elsewhere_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_born_elsewhere_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_marg_19change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_marg_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+
+
+```
+
+### Get Pseudo t-Values and significance levels
+
+```{r}
+
+# first run gwr.basic model
+# then use gwr.t.adjust
+pcagw.df <- as_Spatial(pcagw.df)
+DM<-gw.dist(coords)
+bw2<-bw.gwr(con_change ~ PC1gw + PC2gw, 
+                        data=pcagw.df,approach="aic",adaptive=TRUE, 
+kernel = "gaussian", dMat=DM)
+gwr.res2<-gwr.basic(con_change ~ PC1gw + PC2gw, 
+                        data=pcagw.df, bw=bw2,adaptive=TRUE,
+kernel = "gaussian", dMat=DM)
+
+x <- gwr.t.adjust(gwr.res2)
+all_elections_tvals <- all_elections1 %>% 
+  cbind(x$results$p) %>% 
+  mutate(
+    PC1p95 = factor (ifelse (PC1gw_p <= 0.05, 0.05, 1)),
+    PC2p95 = factor (ifelse (PC2gw_p <= 0.05, 0.05, 1)),
+    PC1p90 = factor (ifelse (PC1gw_p >0.05 & PC1gw_p <0.1, 0.1, 1)),
+    PC2p90 = factor (ifelse (PC2gw_p >0.05 & PC2gw_p <0.1, 0.1, 1)),
+    PCsig = factor (ifelse (PC1p95==PC2p95, 0.05, 
+                           ifelse(PC1p90==PC2p90, 0.1, "N/S"))))
+         
+
+ggplot(all_elections_tvals) + geom_sf(aes(fill=PCsig)) + 
+  scale_fill_manual(values = c("red","pink","black")) +
+  labs(title = "Significance of Coefficient Estimates",
+       fill = "p-value")
 
 
 ```
 
 
 
-#### R-squared from different models
+#### R-squared
 
 ```{r, fig.height=6, fig.width=12}
 
@@ -1353,56 +395,1255 @@ r2.gwr.gwpca <- as.data.frame(gwr.model.gwpca$SDF$localR2) %>%
 ggplot(r2.gwr.gwpca) + geom_sf(aes(fill=`gwr.model.gwpca$SDF$localR2`)) +
   coord_sf(datum = NA) +  
   theme_light() +
-  scale_fill_steps2(midpoint = 0.3) + 
+  scale_fill_steps2() + 
   labs(title = "R2 GWR local PCA", 
        fill = "R-squared Value")
 
 ```
 
 
-<!-- #### Parallel co-ordinate plots of coefficients -->
-
-<!-- ```{r, fig.height=12, fig.width=12} -->
-<!-- ggparcoord(all_elections1, columns = 326:337, groupColumn = 6, scale = "center") +  -->
-<!--   custom_colors +  -->
-<!--   facet_wrap(~region) +  -->
-<!--   theme(legend.position="none") +  -->
-<!--   coord_flip() -->
-
-<!-- ``` -->
+### Election 2017 vs 2015
 
 
-<!-- ```{r, fig.height=12, fig.width=12} -->
-<!-- all_elections_temp <- all_elections1 %>%  -->
-<!--   dplyr::select(326:337) %>%  -->
-<!--   st_drop_geometry() %>%  -->
-<!--   abs() %>%  -->
-<!--   cbind(all_elections1[,6]) -->
-
-<!-- ggparcoord(all_elections_temp, columns = 1:12, groupColumn = 13) +  -->
-<!--   custom_colors +  -->
-<!--   facet_wrap(~region) +  -->
-<!--   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +  -->
-<!--   theme(legend.position="none") +  -->
-<!--   coord_flip() -->
-
-<!-- p_w <- ggparcoord(all_elections_temp %>% filter(region=="Wales"), columns = 1:12, scale = "center") -->
-<!-- p_se <- ggparcoord(all_elections_temp %>% filter(region=="South East"), columns = 1:12, scale = "center") -->
-<!-- p_wm <- ggparcoord(all_elections_temp %>% filter(region=="West Midlands"), columns = 1:12, scale = "center") -->
-<!-- p_nw <- ggparcoord(all_elections_temp %>% filter(region=="North West"), columns = 1:12, scale = "center") -->
-<!-- p_em <- ggparcoord(all_elections_temp %>% filter(region=="East Midlands"), columns = 1:12, scale = "center") -->
-<!-- p_l <- ggparcoord(all_elections_temp %>% filter(region=="London"), columns = 1:12, scale = "center") -->
-<!-- p_yh <- ggparcoord(all_elections_temp %>% filter(region=="Yorkshire and The Humber"), columns = 1:12, scale = "center") -->
-<!-- p_e <- ggparcoord(all_elections_temp %>% filter(region=="Wales"), columns = 1:12, scale = "center") -->
-<!-- p_sw <- ggparcoord(all_elections_temp %>% filter(region=="South West"), columns = 1:12, scale = "center") -->
-<!-- p_ne <- ggparcoord(all_elections_temp %>% filter(region=="North East"), columns = 1:12, scale = "center") -->
-
-<!-- p_w + p_se -->
-<!-- p_wm + p_nw -->
-<!-- p_em + p_l -->
-<!-- p_yh + p_e -->
-<!-- p_sw + p_ne -->
-<!-- ``` -->
+```{r}
+all_elections <- all_elections %>% 
+  mutate(
+    con_change = log(
+      (con_19/(1-con_19)) / (con_17/(1-con_17))
+    ), 
+    con_change17 = log(
+      (con_17/(1-con_17)) / (con_15/(1-con_15))
+    ), 
+    marginality = ifelse(winner_17=="Conservative", majority_17,
+                         ifelse(winner_17=="Labour", con_17-lab_17, 
+                                ifelse(winner_17=="Liberal Democrat", con_17-ld_17, 
+                                     ifelse(winner_17=="Green", con_17-green_17, con_17-pc_17)
+                                )))
+    ) %>% 
+  filter(!is.na(con_change)) %>%  # where didn't compete, speaker's seat
+  filter(!is.na(marginality))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
 
 
+```
+
+```{r}
+# select variables
+
+# extract the variables or combination variables which have been chosen...
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+vars <- all_elections1 %>% 
+  dplyr::select(con_change17, low_qual, over65, deprived, student, marginality) %>% 
+  st_drop_geometry()
+```
+
+ 
+```{r}
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+coords <- st_centroid(all_elections_polygons$geometry) %>%
+  st_coordinates()
+
+```
+
+```{r}
+
+pcagw.df <- as.data.frame(cbind(all_elections1$con_change17, PC1gw, PC2gw, all_elections_polygons$geometry)) %>% 
+  st_as_sf()
+colnames(pcagw.df) <- c("con_change17", "PC1gw", "PC2gw", "geometry")
+str(pcagw.df)
+
+# now the GWR model with GWPCA components
+GWRbandwidth.gwpca <- gwr.sel(con_change17 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, adapt=T)
+
+GWRbandwidth.gwpca
+
+#run the gwr model
+gwr.model.gwpca = gwr(con_change17 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, 
+                adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
+
+# examine first two components
+head(gwr.model.gwpca$SDF$PC1gw)
+head(gwr.model.gwpca$SDF$PC2gw)
+
+# before loop, define vectors
+coef_low_qual_gwpca <- vector()
+coef_over65_gwpca <- vector()
+coef_student_gwpca <- vector()
+coef_deprived_gwpca <- vector()
+coef_density_gwpca <- vector()
+coef_leave_EU_gwpca <- vector()
+coef_health_very_bad_gwpca <- vector()
+coef_house_owned_gwpca <- vector()
+coef_household_one_person_gwpca <- vector()
+coef_ethnicity_white_gwpca <- vector()
+coef_unemployed_gwpca <- vector()
+coef_born_elsewhere_gwpca <- vector()
+coef_marg_gwpca <- vector()
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:571) {
+coef_low_qual_gwpca[i] <- as.vector((loadings[i,1,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,1,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_over65_gwpca[i] <- as.vector((loadings[i,2,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,2,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_student_gwpca[i] <- as.vector((loadings[i,3,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,3,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_deprived_gwpca[i] <- as.vector((loadings[i,4,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,4,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_density_gwpca[i] <- as.vector((loadings[i,5,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,5,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_leave_EU_gwpca[i] <- as.vector((loadings[i,6,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,6,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_health_very_bad_gwpca[i] <- as.vector((loadings[i,7,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,7,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_house_owned_gwpca[i] <- as.vector((loadings[i,8,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,8,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_household_one_person_gwpca[i] <- as.vector((loadings[i,9,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,9,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_ethnicity_white_gwpca[i] <- as.vector((loadings[i,10,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,10,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_unemployed_gwpca[i] <- as.vector((loadings[i,11,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,11,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_born_elsewhere_gwpca[i] <- as.vector((loadings[i,12,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,12,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_marg_gwpca[i] <- as.vector((loadings[i,13,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,13,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+}
+
+# bind into a table
+gwr_gwpca_table <- as.data.frame(cbind(coef_low_qual_gwpca, coef_over65_gwpca, coef_student_gwpca, coef_deprived_gwpca,
+               coef_density_gwpca, coef_leave_EU_gwpca, coef_health_very_bad_gwpca, coef_house_owned_gwpca, 
+               coef_household_one_person_gwpca, coef_ethnicity_white_gwpca, 
+               coef_unemployed_gwpca, coef_born_elsewhere_gwpca, coef_marg_gwpca)) %>% 
+  apply(2,exp)
+
+
+# insert into all_elections1 with polygons
+all_elections1 <- cbind(all_elections1, gwr_gwpca_table) %>% 
+  st_drop_geometry() %>% 
+  cbind(all_elections_polygons$geometry) %>% 
+  st_as_sf()
+  
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+
+# coefficient value in each consitituency
+
+p_low_qual_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_low_qual_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_over65_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_over65_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_student_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_student_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_deprived_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_deprived_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_density_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_density_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_leave_EU_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_leave_EU_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_health_very_bad_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_health_very_bad_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_house_owned_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_house_owned_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_household_one_person_17change <- ggplot(all_elections1) + 
+  geom_sf(aes(fill=coef_household_one_person_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_ethnicity_white_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_ethnicity_white_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_unemployed_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_unemployed_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_born_elsewhere_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_born_elsewhere_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_marg_17change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_marg_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+
+```
+
+
+### Election 2015 vs 2010
+
+
+```{r}
+all_elections <- all_elections %>% 
+  mutate(
+    con_change = log(
+      (con_19/(1-con_19)) / (con_17/(1-con_17))
+    ), 
+    con_change15 = log(
+      (con_15/(1-con_15)) / (con_10/(1-con_10))
+    ), 
+    marginality = ifelse(winner_17=="Conservative", majority_17,
+                         ifelse(winner_17=="Labour", con_17-lab_17, 
+                                ifelse(winner_17=="Liberal Democrat", con_17-ld_17, 
+                                     ifelse(winner_17=="Green", con_17-green_17, con_17-pc_17)
+                                )))
+    ) %>% 
+  filter(!is.na(con_change)) %>%  # where didn't compete, speaker's seat
+  filter(!is.na(marginality))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+
+
+```
+
+```{r}
+# select variables
+
+# extract the variables or combination variables which have been chosen...
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+vars <- all_elections1 %>% 
+  dplyr::select(con_change15, low_qual, over65, deprived, student, marginality) %>% 
+  st_drop_geometry()
+```
+
+ 
+```{r}
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+coords <- st_centroid(all_elections_polygons$geometry) %>%
+  st_coordinates()
+
+```
+
+```{r}
+
+pcagw.df <- as.data.frame(cbind(all_elections1$con_change15, PC1gw, PC2gw, all_elections_polygons$geometry)) %>% 
+  st_as_sf()
+colnames(pcagw.df) <- c("con_change15", "PC1gw", "PC2gw", "geometry")
+str(pcagw.df)
+
+# now the GWR model with GWPCA components
+GWRbandwidth.gwpca <- gwr.sel(con_change15 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, adapt=T)
+
+GWRbandwidth.gwpca
+
+#run the gwr model
+gwr.model.gwpca = gwr(con_change15 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, 
+                adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
+
+# examine first two components
+head(gwr.model.gwpca$SDF$PC1gw)
+head(gwr.model.gwpca$SDF$PC2gw)
+
+# before loop, define vectors
+coef_low_qual_gwpca <- vector()
+coef_over65_gwpca <- vector()
+coef_student_gwpca <- vector()
+coef_deprived_gwpca <- vector()
+coef_density_gwpca <- vector()
+coef_leave_EU_gwpca <- vector()
+coef_health_very_bad_gwpca <- vector()
+coef_house_owned_gwpca <- vector()
+coef_household_one_person_gwpca <- vector()
+coef_ethnicity_white_gwpca <- vector()
+coef_unemployed_gwpca <- vector()
+coef_born_elsewhere_gwpca <- vector()
+coef_marg_gwpca <- vector()
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:571) {
+coef_low_qual_gwpca[i] <- as.vector((loadings[i,1,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,1,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_over65_gwpca[i] <- as.vector((loadings[i,2,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,2,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_student_gwpca[i] <- as.vector((loadings[i,3,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,3,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_deprived_gwpca[i] <- as.vector((loadings[i,4,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,4,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_density_gwpca[i] <- as.vector((loadings[i,5,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,5,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_leave_EU_gwpca[i] <- as.vector((loadings[i,6,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,6,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_health_very_bad_gwpca[i] <- as.vector((loadings[i,7,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,7,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_house_owned_gwpca[i] <- as.vector((loadings[i,8,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,8,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_household_one_person_gwpca[i] <- as.vector((loadings[i,9,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,9,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_ethnicity_white_gwpca[i] <- as.vector((loadings[i,10,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,10,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_unemployed_gwpca[i] <- as.vector((loadings[i,11,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,11,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_born_elsewhere_gwpca[i] <- as.vector((loadings[i,12,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,12,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_marg_gwpca[i] <- as.vector((loadings[i,13,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,13,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+}
+
+# bind into a table
+gwr_gwpca_table <- as.data.frame(cbind(coef_low_qual_gwpca, coef_over65_gwpca, coef_student_gwpca, coef_deprived_gwpca,
+               coef_density_gwpca, coef_leave_EU_gwpca, coef_health_very_bad_gwpca, coef_house_owned_gwpca, 
+               coef_household_one_person_gwpca, coef_ethnicity_white_gwpca, 
+               coef_unemployed_gwpca, coef_born_elsewhere_gwpca, coef_marg_gwpca)) %>% 
+  apply(2,exp)
+
+
+# insert into all_elections1 with polygons
+all_elections1 <- cbind(all_elections1, gwr_gwpca_table) %>% 
+  st_drop_geometry() %>% 
+  cbind(all_elections_polygons$geometry) %>% 
+  st_as_sf()
+  
+
+```
+
+
+
+```{r, fig.height=6, fig.width=12}
+
+# coefficient value in each consitituency
+
+p_low_qual_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_low_qual_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_over65_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_over65_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_student_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_student_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_deprived_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_deprived_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_density_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_density_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_leave_EU_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_leave_EU_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_health_very_bad_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_health_very_bad_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_house_owned_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_house_owned_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_household_one_person_15change <- ggplot(all_elections1) + 
+  geom_sf(aes(fill=coef_household_one_person_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_ethnicity_white_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_ethnicity_white_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_unemployed_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_unemployed_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_born_elsewhere_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_born_elsewhere_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+p_marg_15change <- ggplot(all_elections1) + geom_sf(aes(fill=coef_marg_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 1)
+
+
+```
+
+### Election 2019 cons vote %, not change
+
+
+```{r}
+all_elections <- all_elections %>% 
+  mutate(
+    con_change = log(
+      (con_19/(1-con_19)) / (con_17/(1-con_17))
+    ), 
+    con_change15 = log(
+      (con_15/(1-con_15)) / (con_10/(1-con_10))
+    ), 
+    marginality = ifelse(winner_17=="Conservative", majority_17,
+                         ifelse(winner_17=="Labour", con_17-lab_17, 
+                                ifelse(winner_17=="Liberal Democrat", con_17-ld_17, 
+                                     ifelse(winner_17=="Green", con_17-green_17, con_17-pc_17)
+                                )))
+    ) %>% 
+  filter(!is.na(con_change)) %>%  # where didn't compete, speaker's seat
+  filter(!is.na(marginality))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+
+
+```
+
+```{r}
+# select variables
+
+# extract the variables or combination variables which have been chosen...
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+vars <- all_elections1 %>% 
+  dplyr::select(con_19, low_qual, over65, deprived, student, marginality) %>% 
+  st_drop_geometry()
+```
+
+ 
+```{r}
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+coords <- st_centroid(all_elections_polygons$geometry) %>%
+  st_coordinates()
+
+```
+
+```{r}
+
+pcagw.df <- as.data.frame(cbind(all_elections1$con_19, PC1gw, PC2gw, all_elections_polygons$geometry)) %>% 
+  st_as_sf()
+colnames(pcagw.df) <- c("con_19", "PC1gw", "PC2gw", "geometry")
+str(pcagw.df)
+
+# now the GWR model with GWPCA components
+GWRbandwidth.gwpca <- gwr.sel(con_19 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, adapt=T)
+
+GWRbandwidth.gwpca
+
+#run the gwr model
+gwr.model.gwpca = gwr(con_19 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, 
+                adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
+
+# examine first two components
+head(gwr.model.gwpca$SDF$PC1gw)
+head(gwr.model.gwpca$SDF$PC2gw)
+
+# before loop, define vectors
+coef_low_qual_gwpca <- vector()
+coef_over65_gwpca <- vector()
+coef_student_gwpca <- vector()
+coef_deprived_gwpca <- vector()
+coef_density_gwpca <- vector()
+coef_leave_EU_gwpca <- vector()
+coef_health_very_bad_gwpca <- vector()
+coef_house_owned_gwpca <- vector()
+coef_household_one_person_gwpca <- vector()
+coef_ethnicity_white_gwpca <- vector()
+coef_unemployed_gwpca <- vector()
+coef_born_elsewhere_gwpca <- vector()
+coef_marg_gwpca <- vector()
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:571) {
+coef_low_qual_gwpca[i] <- as.vector((loadings[i,1,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,1,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_over65_gwpca[i] <- as.vector((loadings[i,2,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,2,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_student_gwpca[i] <- as.vector((loadings[i,3,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,3,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_deprived_gwpca[i] <- as.vector((loadings[i,4,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,4,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_density_gwpca[i] <- as.vector((loadings[i,5,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,5,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_leave_EU_gwpca[i] <- as.vector((loadings[i,6,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,6,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_health_very_bad_gwpca[i] <- as.vector((loadings[i,7,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,7,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_house_owned_gwpca[i] <- as.vector((loadings[i,8,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,8,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_household_one_person_gwpca[i] <- as.vector((loadings[i,9,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,9,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_ethnicity_white_gwpca[i] <- as.vector((loadings[i,10,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,10,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_unemployed_gwpca[i] <- as.vector((loadings[i,11,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,11,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_born_elsewhere_gwpca[i] <- as.vector((loadings[i,12,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,12,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_marg_gwpca[i] <- as.vector((loadings[i,13,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,13,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+}
+
+# bind into a table
+gwr_gwpca_table <- as.data.frame(cbind(coef_low_qual_gwpca, coef_over65_gwpca, coef_student_gwpca, coef_deprived_gwpca,
+               coef_density_gwpca, coef_leave_EU_gwpca, coef_health_very_bad_gwpca, coef_house_owned_gwpca, 
+               coef_household_one_person_gwpca, coef_ethnicity_white_gwpca, 
+               coef_unemployed_gwpca, coef_born_elsewhere_gwpca, coef_marg_gwpca))
+
+# insert into all_elections1 with polygons
+all_elections1 <- cbind(all_elections1, gwr_gwpca_table) %>% 
+  st_drop_geometry() %>% 
+  cbind(all_elections_polygons$geometry) %>% 
+  st_as_sf()
+  
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+
+# coefficient value in each consitituency
+
+p_low_qual_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_low_qual_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_over65_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_over65_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_student_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_student_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_deprived_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_deprived_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_density_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_density_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_leave_EU_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_leave_EU_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_health_very_bad_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_health_very_bad_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_house_owned_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_house_owned_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_household_one_person_19tot <- ggplot(all_elections1) + 
+  geom_sf(aes(fill=coef_household_one_person_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_ethnicity_white_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_ethnicity_white_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_unemployed_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_unemployed_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_born_elsewhere_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_born_elsewhere_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_marg_19tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_marg_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+
+```
+
+### Election 2017 cons vote %, not change
+
+
+```{r}
+all_elections <- all_elections %>% 
+  mutate(
+    con_change = log(
+      (con_19/(1-con_19)) / (con_17/(1-con_17))
+    ), 
+    con_change15 = log(
+      (con_15/(1-con_15)) / (con_10/(1-con_10))
+    ), 
+    marginality = ifelse(winner_17=="Conservative", majority_17,
+                         ifelse(winner_17=="Labour", con_17-lab_17, 
+                                ifelse(winner_17=="Liberal Democrat", con_17-ld_17, 
+                                     ifelse(winner_17=="Green", con_17-green_17, con_17-pc_17)
+                                )))
+    ) %>% 
+  filter(!is.na(con_change)) %>%  # where didn't compete, speaker's seat
+  filter(!is.na(marginality))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+
+
+```
+
+```{r}
+# select variables
+
+# extract the variables or combination variables which have been chosen...
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+vars <- all_elections1 %>% 
+  dplyr::select(con_17, low_qual, over65, deprived, student, marginality) %>% 
+  st_drop_geometry()
+```
+
+ 
+```{r}
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+coords <- st_centroid(all_elections_polygons$geometry) %>%
+  st_coordinates()
+
+```
+
+```{r}
+
+pcagw.df <- as.data.frame(cbind(all_elections1$con_17, PC1gw, PC2gw, all_elections_polygons$geometry)) %>% 
+  st_as_sf()
+colnames(pcagw.df) <- c("con_17", "PC1gw", "PC2gw", "geometry")
+str(pcagw.df)
+
+# now the GWR model with GWPCA components
+GWRbandwidth.gwpca <- gwr.sel(con_17 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, adapt=T)
+
+GWRbandwidth.gwpca
+
+#run the gwr model
+gwr.model.gwpca = gwr(con_17 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, 
+                adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
+
+# examine first two components
+head(gwr.model.gwpca$SDF$PC1gw)
+head(gwr.model.gwpca$SDF$PC2gw)
+
+# before loop, define vectors
+coef_low_qual_gwpca <- vector()
+coef_over65_gwpca <- vector()
+coef_student_gwpca <- vector()
+coef_deprived_gwpca <- vector()
+coef_density_gwpca <- vector()
+coef_leave_EU_gwpca <- vector()
+coef_health_very_bad_gwpca <- vector()
+coef_house_owned_gwpca <- vector()
+coef_household_one_person_gwpca <- vector()
+coef_ethnicity_white_gwpca <- vector()
+coef_unemployed_gwpca <- vector()
+coef_born_elsewhere_gwpca <- vector()
+coef_marg_gwpca <- vector()
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:571) {
+coef_low_qual_gwpca[i] <- as.vector((loadings[i,1,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,1,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_over65_gwpca[i] <- as.vector((loadings[i,2,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,2,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_student_gwpca[i] <- as.vector((loadings[i,3,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,3,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_deprived_gwpca[i] <- as.vector((loadings[i,4,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,4,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_density_gwpca[i] <- as.vector((loadings[i,5,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,5,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_leave_EU_gwpca[i] <- as.vector((loadings[i,6,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,6,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_health_very_bad_gwpca[i] <- as.vector((loadings[i,7,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,7,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_house_owned_gwpca[i] <- as.vector((loadings[i,8,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,8,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_household_one_person_gwpca[i] <- as.vector((loadings[i,9,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,9,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_ethnicity_white_gwpca[i] <- as.vector((loadings[i,10,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,10,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_unemployed_gwpca[i] <- as.vector((loadings[i,11,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,11,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_born_elsewhere_gwpca[i] <- as.vector((loadings[i,12,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,12,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_marg_gwpca[i] <- as.vector((loadings[i,13,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,13,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+}
+
+# bind into a table
+gwr_gwpca_table <- as.data.frame(cbind(coef_low_qual_gwpca, coef_over65_gwpca, coef_student_gwpca, coef_deprived_gwpca,
+               coef_density_gwpca, coef_leave_EU_gwpca, coef_health_very_bad_gwpca, coef_house_owned_gwpca, 
+               coef_household_one_person_gwpca, coef_ethnicity_white_gwpca, 
+               coef_unemployed_gwpca, coef_born_elsewhere_gwpca, coef_marg_gwpca))
+
+# insert into all_elections1 with polygons
+all_elections1 <- cbind(all_elections1, gwr_gwpca_table) %>% 
+  st_drop_geometry() %>% 
+  cbind(all_elections_polygons$geometry) %>% 
+  st_as_sf()
+  
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+
+# coefficient value in each consitituency
+
+p_low_qual_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_low_qual_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_over65_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_over65_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_student_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_student_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_deprived_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_deprived_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_density_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_density_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_leave_EU_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_leave_EU_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_health_very_bad_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_health_very_bad_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_house_owned_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_house_owned_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_household_one_person_17tot <- ggplot(all_elections1) + 
+  geom_sf(aes(fill=coef_household_one_person_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_ethnicity_white_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_ethnicity_white_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_unemployed_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_unemployed_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_born_elsewhere_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_born_elsewhere_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_marg_17tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_marg_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+
+```
+
+
+### Election 2015 cons vote %, not change
+
+
+```{r}
+all_elections <- all_elections %>% 
+  mutate(
+    con_change = log(
+      (con_19/(1-con_19)) / (con_17/(1-con_17))
+    ), 
+    con_change15 = log(
+      (con_15/(1-con_15)) / (con_10/(1-con_10))
+    ), 
+    marginality = ifelse(winner_17=="Conservative", majority_17,
+                         ifelse(winner_17=="Labour", con_17-lab_17, 
+                                ifelse(winner_17=="Liberal Democrat", con_17-ld_17, 
+                                     ifelse(winner_17=="Green", con_17-green_17, con_17-pc_17)
+                                )))
+    ) %>% 
+  filter(!is.na(con_change)) %>%  # where didn't compete, speaker's seat
+  filter(!is.na(marginality))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+
+
+```
+
+```{r}
+# select variables
+
+# extract the variables or combination variables which have been chosen...
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+```
+
+ 
+```{r}
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+coords <- st_centroid(all_elections_polygons$geometry) %>%
+  st_coordinates()
+
+```
+
+```{r}
+
+pcagw.df <- as.data.frame(cbind(all_elections1$con_15, PC1gw, PC2gw, all_elections_polygons$geometry)) %>% 
+  st_as_sf()
+colnames(pcagw.df) <- c("con_15", "PC1gw", "PC2gw", "geometry")
+str(pcagw.df)
+
+# now the GWR model with GWPCA components
+GWRbandwidth.gwpca <- gwr.sel(con_15 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, adapt=T)
+
+GWRbandwidth.gwpca
+
+#run the gwr model
+gwr.model.gwpca = gwr(con_15 ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, 
+                adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
+
+# examine first two components
+head(gwr.model.gwpca$SDF$PC1gw)
+head(gwr.model.gwpca$SDF$PC2gw)
+
+# before loop, define vectors
+coef_low_qual_gwpca <- vector()
+coef_over65_gwpca <- vector()
+coef_student_gwpca <- vector()
+coef_deprived_gwpca <- vector()
+coef_density_gwpca <- vector()
+coef_leave_EU_gwpca <- vector()
+coef_health_very_bad_gwpca <- vector()
+coef_house_owned_gwpca <- vector()
+coef_household_one_person_gwpca <- vector()
+coef_ethnicity_white_gwpca <- vector()
+coef_unemployed_gwpca <- vector()
+coef_born_elsewhere_gwpca <- vector()
+coef_marg_gwpca <- vector()
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:571) {
+coef_low_qual_gwpca[i] <- as.vector((loadings[i,1,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,1,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_over65_gwpca[i] <- as.vector((loadings[i,2,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,2,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_student_gwpca[i] <- as.vector((loadings[i,3,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,3,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_deprived_gwpca[i] <- as.vector((loadings[i,4,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,4,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_density_gwpca[i] <- as.vector((loadings[i,5,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,5,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_leave_EU_gwpca[i] <- as.vector((loadings[i,6,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,6,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_health_very_bad_gwpca[i] <- as.vector((loadings[i,7,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,7,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_house_owned_gwpca[i] <- as.vector((loadings[i,8,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,8,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_household_one_person_gwpca[i] <- as.vector((loadings[i,9,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,9,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_ethnicity_white_gwpca[i] <- as.vector((loadings[i,10,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,10,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_unemployed_gwpca[i] <- as.vector((loadings[i,11,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,11,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_born_elsewhere_gwpca[i] <- as.vector((loadings[i,12,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,12,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+coef_marg_gwpca[i] <- as.vector((loadings[i,13,1] * as.numeric(gwr.model.gwpca$SDF$PC1gw[i])) + 
+  (loadings[i,13,2] * as.numeric(gwr.model.gwpca$SDF$PC2gw[i])))
+}
+
+# bind into a table
+gwr_gwpca_table <- as.data.frame(cbind(coef_low_qual_gwpca, coef_over65_gwpca, coef_student_gwpca, coef_deprived_gwpca,
+               coef_density_gwpca, coef_leave_EU_gwpca, coef_health_very_bad_gwpca, coef_house_owned_gwpca, 
+               coef_household_one_person_gwpca, coef_ethnicity_white_gwpca, 
+               coef_unemployed_gwpca, coef_born_elsewhere_gwpca, coef_marg_gwpca))
+
+# insert into all_elections1 with polygons
+all_elections1 <- cbind(all_elections1, gwr_gwpca_table) %>% 
+  st_drop_geometry() %>% 
+  cbind(all_elections_polygons$geometry) %>% 
+  st_as_sf()
+  
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+
+# coefficient value in each consitituency
+
+p_low_qual_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_low_qual_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_over65_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_over65_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_student_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_student_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_deprived_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_deprived_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_density_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_density_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_leave_EU_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_leave_EU_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_health_very_bad_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_health_very_bad_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_house_owned_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_house_owned_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_household_one_person_15tot <- ggplot(all_elections1) + 
+  geom_sf(aes(fill=coef_household_one_person_gwpca)) + 
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_ethnicity_white_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_ethnicity_white_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_unemployed_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_unemployed_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_born_elsewhere_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_born_elsewhere_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+p_marg_15tot <- ggplot(all_elections1) + geom_sf(aes(fill=coef_marg_gwpca)) +
+  coord_sf(datum = NA) +  
+  theme_light() + 
+  scale_fill_gradient2(low="red",high="blue", midpoint = 0)
+
+
+```
+
+### Low Qualifications
+
+```{r, fig.height=12, fig.width=12}
+
+
+(p_low_qual_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_low_qual_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_low_qual_19tot + labs(title="Cons.Total 2019")) / 
+  (p_low_qual_17tot + labs(title="Cons.Total 2017")) / 
+  (p_low_qual_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Over 65
+
+```{r, fig.height=12, fig.width=12}
+
+(p_over65_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_over65_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_over65_19tot + labs(title="Cons.Total 2019")) / 
+  (p_over65_17tot + labs(title="Cons.Total 2017")) / 
+  (p_over65_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Student
+
+```{r, fig.height=12, fig.width=12}
+
+(p_student_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_student_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_student_19tot + labs(title="Cons.Total 2019")) /
+  (p_student_17tot + labs(title="Cons.Total 2017")) / 
+  (p_student_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Deprived
+
+```{r, fig.height=12, fig.width=12}
+
+(p_deprived_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_deprived_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_deprived_19tot + labs(title="Cons.Total 2019")) /
+  (p_deprived_17tot + labs(title="Cons.Total 2017")) / 
+  (p_deprived_15tot + labs(title="Cons.Total 2015"))
+```
+
+### Density
+
+```{r, fig.height=12, fig.width=12}
+
+(p_density_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_density_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_density_19tot + labs(title="Cons.Total 2019")) /
+  (p_density_17tot + labs(title="Cons.Total 2017")) / 
+  (p_density_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Leave EU
+
+```{r, fig.height=12, fig.width=12}
+
+(p_leave_EU_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_leave_EU_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_leave_EU_19tot + labs(title="Cons.Total 2019")) /
+  (p_leave_EU_17tot + labs(title="Cons.Total 2017")) / 
+  (p_leave_EU_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Health Very Bad
+
+```{r, fig.height=12, fig.width=12}
+
+(p_health_very_bad_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_health_very_bad_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_health_very_bad_19tot + labs(title="Cons.Total 2019")) /
+  (p_health_very_bad_17tot + labs(title="Cons.Total 2017")) /
+  (p_health_very_bad_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### House Owned
+
+```{r, fig.height=12, fig.width=12}
+
+(p_house_owned_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_house_owned_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_house_owned_19tot + labs(title="Cons.Total 2019")) /
+  (p_house_owned_17tot + labs(title="Cons.Total 2017")) /
+  (p_house_owned_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Household One Person
+
+```{r, fig.height=12, fig.width=12}
+
+(p_household_one_person_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_household_one_person_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_household_one_person_19tot + labs(title="Cons.Total 2019")) /
+  (p_household_one_person_17tot + labs(title="Cons.Total 2017")) / 
+  (p_household_one_person_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Ethnicity White
+
+```{r, fig.height=12, fig.width=12}
+
+(p_ethnicity_white_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_ethnicity_white_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_ethnicity_white_19tot + labs(title="Cons.Total 2019")) /
+  (p_ethnicity_white_17tot + labs(title="Cons.Total 2017")) / 
+  (p_ethnicity_white_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Unemployed
+
+```{r, fig.height=12, fig.width=12}
+
+(p_unemployed_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_unemployed_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_unemployed_19tot + labs(title="Cons.Total 2019")) /
+  (p_unemployed_17tot + labs(title="Cons.Total 2017")) / 
+  (p_unemployed_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Born Elsewhere
+
+```{r, fig.height=12, fig.width=12}
+
+(p_born_elsewhere_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_born_elsewhere_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_born_elsewhere_19tot + labs(title="Cons.Total 2019")) /
+  (p_born_elsewhere_17tot + labs(title="Cons.Total 2017")) / 
+  (p_born_elsewhere_15tot + labs(title="Cons.Total 2015"))
+
+```
+
+### Marginality
+
+```{r, fig.height=12, fig.width=12}
+
+(p_marg_19change + labs(title="Cons.Change 2019/17")) / 
+  (p_marg_17change + labs(title="Cons.Change 2017/15")) | 
+  (p_marg_19tot + labs(title="Cons.Total 2019")) /
+  (p_marg_17tot + labs(title="Cons.Total 2017")) / 
+  (p_marg_15tot + labs(title="Cons.Total 2015"))
+
+
+```
 
