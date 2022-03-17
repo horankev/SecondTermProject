@@ -1,0 +1,461 @@
+---
+title: "bring_together"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+
+library(sf)
+library(parlitools)
+library(here)
+library(ggfortify)
+library(patchwork)
+library(stringr)
+library(here)
+library(GGally)
+library(spatialreg)
+library(spdep)
+library(broom)
+library(spgwr)
+library(gridExtra)
+library(grid)
+library(Hmisc)
+library(MASS)
+library(stargazer)
+library(car)
+library(factoextra)
+library(GWmodel)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(ggpubr)
+library(RColorBrewer)
+library(tidyverse)
+library(kableExtra)
+
+rm(list=ls())
+here()
+```
+
+
+```{r}
+# read in required data
+
+all_elections <- readRDS(here("data", "all_elections.rds"))
+party_colour <- party_colour
+constituency_polygons <- readRDS(here("data", "constituency_polygons.rds"))
+
+#################################
+# focus on change in votes
+# map this for different parties
+
+all_elections <- all_elections %>% 
+  mutate(competed_con = factor(ifelse(is.na(con_19-con_17),"No","Yes")),
+         competed_lab = factor(ifelse(is.na(lab_19-lab_17),"No","Yes")),
+         competed_ld = factor(ifelse(is.na(ld_19-ld_17),"No","Yes")),
+         competed_green = factor(ifelse(is.na(green_19-green_17),"No","Yes")),
+         competed_pc = factor(ifelse(is.na(pc_19-pc_17),"No","Yes")),
+         competed_snp = factor(ifelse(is.na(snp_19-snp_17),"No","Yes")),)
+
+
+
+# since SNP completely dominant in Scotland, but does not run elsewhere
+# will treat England & Wales as one dataset "all_elections1"
+# Scotland will be "all_elections2"
+# examine each separately
+
+# focus on change in conservative vote in England and Wales
+# will add variable for change in conservative vote 2017-19: "con_change"
+
+all_elections <- all_elections %>% 
+  mutate(
+    con_change = log(
+      (con_19/(1-con_19)) / (con_17/(1-con_17))
+    ), 
+    con_change17 = log(
+      (con_17/(1-con_17)) / (con_15/(1-con_15))
+    ), 
+    marginality = ifelse(winner_17=="Conservative", majority_17,
+                         ifelse(winner_17=="Labour", con_17-lab_17, 
+                                ifelse(winner_17=="Liberal Democrat", con_17-ld_17, 
+                                     ifelse(winner_17=="Green", con_17-green_17, con_17-pc_17)
+                                )))
+    ) %>% 
+  filter(!is.na(con_change)) %>%  # where didn't compete, speaker's seat
+  filter(!is.na(marginality))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+
+
+```
+
+
+
+```{r}
+# select variables
+
+# extract the variables or combination variables which have been chosen...
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+
+```
+
+ 
+```{r}
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+coords <- st_centroid(all_elections_polygons$geometry) %>%
+  st_coordinates()
+
+
+```
+
+```{r}
+
+dummy_gwr_gwpca <- readRDS(here("data","dummy_gwr_gwpca.rds"))
+dummy_gwr_pca <- readRDS(here("data","dummy_gwr_pca.rds"))
+dummy_gwr <- readRDS(here("data","dummy_gwr.rds"))
+dummy_lm_pca <- readRDS(here("data","dummy_lm_pca.rds"))
+dummy_lm <- readRDS(here("data","dummy_lm.rds"))
+
+con_diff_gwr_gwpca <- readRDS(here("data","con_diff_gwr_gwpca.rds"))
+con_diff_gwr_pca <- readRDS(here("data","con_diff_gwr_pca.rds"))
+con_diff_gwr <- readRDS(here("data","con_diff_gwr.rds"))
+con_diff_lm_pca <- readRDS(here("data","con_diff_lm_pca.rds"))
+con_diff_lm <- readRDS(here("data","con_diff_lm.rds"))
+
+log_ratio_gwr_gwpca <- readRDS(here("data","log_ratio_gwr_gwpca.rds"))
+log_ratio_gwr_pca <- readRDS(here("data","log_ratio_gwr_pca.rds"))
+log_ratio_gwr <- readRDS(here("data","log_ratio_gwr.rds"))
+log_ratio_lm_pca <- readRDS(here("data","log_ratio_lm_pca.rds"))
+log_ratio_lm <- readRDS(here("data","log_ratio_lm.rds"))
+
+```
+
+### Research Question
+
+The 2019 UK General Election saw the Conservative Party improve their position dramatically in the House of Commons. Not only did they hold the largest number of seats, as in the previous election of 2017, but now they held a landslide overall majority of 80 seats. Many of the gains which the Conservatives made were in seats which were long-held by Labour candidates, often referred to as the *'red wall'*. These are a set of constituencies in England and Wales, mainly in the Midlands, Northern England, and North East Wales, which have historically tended to support the Labour party. These areas were also generally associated with high levels of support for leaving the EU in the Brexit referendum. It is often pointed out that there is a temptation for political commentators in the popular press to speak of regions such as these as though they were a monolith - all composed of similarly thinking and similarly motivated individuals. This project aims to use census data and the results of the election in each constituency to examine the degree to which each of several socio-economic characteristics impacted the observed change in Conservative vote, and how this varied across the country. In particular, I wish to see if the change in voting pattern which undeniably occurred in these *'red wall'* seats has one simple explanation which applies across the region, or if different factors are at play in different parts of this traditional Labour stronghold.
+
+### Explanatory Variables 
+
+I have restricted my analysis to England and Wales where this general increase in Conservative vote was observed. Scotland and in particular Northern Ireland have very different political dynamics at play. 
+
+I have chosen the following explanatory variables, which provide a broad sweep of the composition of each constituency: 
+
+* **low qualifications** 
+    * percentage of population possessing only the lowest category of educational attainment 
+* **over 65** 
+    * percentage of population over the age of 65 
+* **student** 
+    * percentage of the population registered as a student 
+* **deprived** 
+    * percentage of the population categorised as possessing two or more characteristics of deprivation 
+* **density** 
+    * the population per squared unit of area 
+    * can be seen as a proxy for degree of urbanisation 
+* **leave EU** 
+    * the percentage of voters in the constituency who voted to leave the EU in the Brexit referendum 
+    * these are estimates based on a study by Hanretty 
+* **house owned** 
+    * the percentage of the population who own their house 
+* **unemployed** 
+    * the percentage of the workforce who are unemployed 
+* **born elsewhere** 
+    * the percentage of the population who were not born in the UK 
+
+### Dependent Variable 
+
+The variable whose change I wish to account for by use of the above explanatory variables is the change in the Conservative vote in the 2019 election compared to the previous in 2017. 
+
+I. use of **dummy variables** 
+II. **simple difference** between vote for Conservatives in 2019 and 2017, using 2017 vote as a controlling explanatory variable 
+III. the **log of the ratio** of (Conservative / Not Conservative in 2019) to (Conservative / Not Conservative in 2017) 
+
+### Models 
+
+1. **LM**
+  * beginning with an OLS linear model 
+2. **LM with PCA** 
+  * as above but addressing the inherent multicollinearity among some of the explanatory variables using principal component analysis. This involves performing the regression on the first two principal components, and then reconstructing values for the coefficients of each explanatory variable. 
+3. **GWR** 
+  * performing a geographically weighted regression to account for spatial heterogeneity 
+4. **GWR with PCA** 
+  * geographically weighted regression as above but using global principal components as before to account for multicollinearity 
+5. **GWR with GWPCA** 
+  * as above but refined further by using geographically weighted principal component analysis to derive local values for the principal components which can then be used to reconstruct coefficients 
+
+
+### Context 
+
+Presented below are the the seats in England and Wales viewed firstly in terms of the size of the rise (or fall) of the conservative vote in 2019 from 2017. The next map shows the seats which actually flipped from another party to the Conservatives. 
+Also shown, below these, are the ranking of the increase in Conservative votes across all the constituencies. 
+
+
+    
+
+```{r, fig.height=6, fig.width=10}
+all_elections_polygons <- all_elections_polygons %>% 
+  mutate(con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0)),
+         con_19gain = con_19 - con_17) %>% 
+  arrange(con_19gain) %>% 
+  mutate(con_gain_rank = seq(from = 571, to = 1, by = -1)) %>% 
+  arrange(pano) %>% 
+  mutate(labour19 = factor(ifelse(winner_19 == "Labour", 1, 0)), 
+         labour17 = factor(ifelse(winner_17 == "Labour", 1, 0)),
+         labour15 = factor(ifelse(winner_15 == "Labour", 1, 0)),
+         labour10 = factor(ifelse(winner_10 == "Labour", 1, 0)))
+  
+
+cgainvotes <- ggplot(all_elections_polygons) + geom_sf(aes(fill=con_19gain)) + 
+  scale_fill_gradient2(low="red",high="darkblue",mid="white",midpoint = 0) + 
+  labs(title = "Conservatives Gain/Loss Votes", fill="%")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
+
+cgainseat <- ggplot(all_elections_polygons) + geom_sf(aes(fill=con_flip)) + 
+  scale_fill_manual(values = c("white","darkblue")) + 
+  labs(title = "Conservatives Gain Seats")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
+
+cgainvotes + cgainseat
+
+ggplot(all_elections_polygons) + geom_sf(aes(fill=con_gain_rank)) + 
+  scale_fill_gradient2(low="darkblue",high="red",mid="white",midpoint = 286) + 
+  labs(title = "Conservatives Gain Ranked")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
+
+```
+
+ 
+ 
+These maps show the collapse of Labour's *'red wall'* in 2019 and where exactly these constituencies are located. A clear shrinkage is visible across Northern Wales and England.  
+
+```{r, fig.height=10, fig.width=10}
+l10 <- ggplot(all_elections_polygons) + geom_sf(aes(fill=labour10)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "Red Wall", subtitle = "Labour Seats 2010")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l15 <- ggplot(all_elections_polygons) + geom_sf(aes(fill=labour15)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "Red Wall", subtitle = "Labour Seats 2015") + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l17 <- ggplot(all_elections_polygons) + geom_sf(aes(fill=labour17)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "Red Wall", subtitle = "Labour Seats 2017") + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l19 <- ggplot(all_elections_polygons) + geom_sf(aes(fill=labour19)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "'Collapse of Red Wall'", subtitle = "Labour Seats 2019") + 
+  coord_sf(datum = NA) +  
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l10 + l15 + l17 + l19
+
+```
+
+ 
+### Answering Research Question 
+
+The above analysis performs 5 different types of regressions using 3 different dependent variables in turn for each, to measure the change in Conservative vote. 
+Below are presented my first attempts to answer the question of whether different factors were at play in the increase in votes for the Conservative party in different areas of the *'red wall'* region. The maps shown below refer to only 3 of the 15 models which have been created. These 3 models are 
+(**Model I** above) a geographically weighted regression using geographically weighted principal component analysis 
+(**Model II** above) a geographically weighted regression using principal component analysis 
+(**Model III** above) a geographically weighted regression 
+of the change in Conservative vote (**Dependent Variable 1** from above) calculated using the results of the 2019 and 2017 elections with a dummy variable 'yr2019' coded as 1 or 0. This term is interacted with each of the explanatory variables as part of the regression. The coefficents under discussion below are those of the interaction between that variable and 'yr2019', representing the effect of a particular variable as a results of the election in question being that of 2019, as opposed to 2017. 
+
+**** 
+
+In this particular analysis, only the seats in England and Wales which flipped to the Conservatives are considered. This does not necessarily mean that these were the biggest swings because clearly the marginality would have been different in each constituency. Other seats will be considered with further analysis.
+The maps below show the results of the application of the k-means algorithm to cluster these flipped seats into 3 and 2 groups respectively. Also shown below the maps are the corresponding mean coefficient for each variable in the cluster. Results of this preliminary analysis seem to show that a change in the value of one of the socio-economic indicators in one region would have a very different effect on changes in Conservative votes in 2019 than a similar change in another cluster of constituencies would have. This effect varies in both magnitude and direction. 
+
+
+
+
+
+
+
+```{r, fig.height=6, fig.width=12}
+
+dummy_sample <- dummy_gwr_gwpca[572:1142,9:16] %>%  # for gwr_gwpca clusters
+  cbind(all_elections_polygons$pano) %>% 
+  rename(pano = `all_elections_polygons$pano`)
+
+con_flip_table <- all_elections_polygons %>% 
+  dplyr::select(constituency_name, con_flip, geometry, pano) %>% 
+  filter(con_flip=="1") %>% 
+  left_join(dummy_sample) %>% 
+  st_as_sf()
+
+set.seed(123)
+kmn3 <- kmeans(st_drop_geometry(con_flip_table[,5:12]),3, nstart = 5)
+cluster <- factor(kmn3$cluster)
+kmn3_table <- cbind(cluster, con_flip_table)
+
+p_clust3 <- ggplot(all_elections_polygons) + geom_sf() + geom_sf(data=kmn3_table, aes(fill=cluster)) + 
+  scale_fill_brewer(palette = "Set1", direction = -1) + 
+  labs(title = "Coefficients of GWR using GWPCA", subtitle = "3 Clusters")
+
+set.seed(123)
+kmn2 <- kmeans(st_drop_geometry(con_flip_table[,5:12]),2, nstart = 5)
+cluster <- factor(kmn2$cluster)
+kmn2_table <- cbind(cluster, con_flip_table)
+
+p_clust2 <- ggplot(all_elections_polygons) + geom_sf() + geom_sf(data=kmn2_table, aes(fill=cluster)) + 
+  scale_fill_brewer(palette = "Set1", direction = -1) + 
+  labs(title = "Coefficients of GWR using GWPCA", subtitle = "2 Clusters")
+
+p_clust3 + p_clust2
+
+kmn3$centres <- kmn3$centers %>% round(3) %>% 
+  as.data.frame()
+
+kmn2$centres <- kmn2$centers %>% round(3) %>% 
+  as.data.frame()
+
+kbl(t(kmn3$centers),digits = 3) %>%
+  kable_minimal(full_width = F, position = "float_left", font_size=12)
+kbl(t(kmn2$centers),digits = 3) %>%
+  kable_minimal(full_width = F, position = "right", font_size=12)
+
+
+
+```
+ 
+ **** 
+ 
+```{r, fig.height=6, fig.width=12}
+
+dummy_sample <- dummy_gwr_pca[572:1142,9:16] %>%   # for gwr_pca clusters
+  cbind(all_elections_polygons$pano) %>% 
+  rename(pano = `all_elections_polygons$pano`)
+
+con_flip_table <- all_elections_polygons %>% 
+  dplyr::select(constituency_name, con_flip, geometry, pano) %>% 
+  filter(con_flip=="1") %>% 
+  left_join(dummy_sample) %>% 
+  st_as_sf()
+
+set.seed(123)
+kmn3 <- kmeans(st_drop_geometry(con_flip_table[,5:12]),3, nstart = 5)
+cluster <- factor(kmn3$cluster)
+kmn3_table <- cbind(cluster, con_flip_table)
+
+p_clust3 <- ggplot(all_elections_polygons) + geom_sf() + geom_sf(data=kmn3_table, aes(fill=cluster)) + 
+  scale_fill_brewer(palette = "Set1", direction = -1) + 
+  labs(title = "Coefficients of GWR using PCA", subtitle = "3 Clusters")
+
+set.seed(123)
+kmn2 <- kmeans(st_drop_geometry(con_flip_table[,5:12]),2, nstart = 5)
+cluster <- factor(kmn2$cluster)
+kmn2_table <- cbind(cluster, con_flip_table)
+
+p_clust2 <- ggplot(all_elections_polygons) + geom_sf() + geom_sf(data=kmn2_table, aes(fill=cluster)) + 
+  scale_fill_brewer(palette = "Set1", direction = -1) + 
+  labs(title = "Coefficients of GWR using PCA", subtitle = "2 Clusters")
+
+p_clust3 + p_clust2
+
+kmn3$centres <- kmn3$centers %>% round(3) %>% 
+  as.data.frame()
+
+kmn2$centres <- kmn2$centers %>% round(3) %>% 
+  as.data.frame()
+
+kbl(t(kmn3$centers),digits = 3) %>%
+  kable_minimal(full_width = F, position = "float_left", font_size=12)
+kbl(t(kmn2$centers),digits = 3) %>%
+  kable_minimal(full_width = F, position = "right", font_size=12)
+
+
+
+
+```
+ 
+ **** 
+ 
+```{r, fig.height=6, fig.width=12}
+
+dummy_sample <- dummy_gwr[572:1142,] %>%           # for gwr clusters
+  cbind(all_elections_polygons$pano) %>% 
+  rename(pano = `all_elections_polygons$pano`)
+
+con_flip_table <- all_elections_polygons %>% 
+  dplyr::select(constituency_name, con_flip, geometry, pano) %>% 
+  filter(con_flip=="1") %>% 
+  left_join(dummy_sample) %>% 
+  st_as_sf()
+
+set.seed(123)
+kmn3 <- kmeans(st_drop_geometry(con_flip_table[,5:12]),3, nstart = 5)
+cluster <- factor(kmn3$cluster)
+kmn3_table <- cbind(cluster, con_flip_table)
+
+p_clust3 <- ggplot(all_elections_polygons) + geom_sf() + geom_sf(data=kmn3_table, aes(fill=cluster)) + 
+  scale_fill_brewer(palette = "Set1", direction = -1) + 
+  labs(title = "Coefficients of GWR", subtitle = "3 Clusters")
+
+set.seed(123)
+kmn2 <- kmeans(st_drop_geometry(con_flip_table[,5:12]),2, nstart = 5)
+cluster <- factor(kmn2$cluster)
+kmn2_table <- cbind(cluster, con_flip_table)
+
+p_clust2 <- ggplot(all_elections_polygons) + geom_sf() + geom_sf(data=kmn2_table, aes(fill=cluster)) + 
+  scale_fill_brewer(palette = "Set1", direction = -1) + 
+  labs(title = "Coefficients of GWR", subtitle = "2 Clusters")
+
+p_clust3 + p_clust2
+
+kmn3$centres <- kmn3$centers %>% round(3) %>% 
+  as.data.frame()
+
+kmn2$centres <- kmn2$centers %>% round(3) %>% 
+  as.data.frame()
+
+kbl(t(kmn3$centers),digits = 3) %>%
+  kable_minimal(full_width = F, position = "float_left", font_size=12)
+kbl(t(kmn2$centers),digits = 3) %>%
+  kable_minimal(full_width = F, position = "right", font_size=12)
+
+
+
+
+```
+ 
+ **** 
+ 
+
+

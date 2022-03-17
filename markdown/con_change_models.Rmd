@@ -1,0 +1,714 @@
+---
+title: "con_change_models"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+
+library(sf)
+library(parlitools)
+library(here)
+library(ggfortify)
+library(patchwork)
+library(stringr)
+library(here)
+library(GGally)
+library(spatialreg)
+library(spdep)
+library(broom)
+library(spgwr)
+library(gridExtra)
+library(grid)
+library(Hmisc)
+library(MASS)
+library(stargazer)
+library(car)
+library(factoextra)
+library(GWmodel)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(ggpubr)
+library(RColorBrewer)
+library(tidyverse)
+library(kableExtra)
+
+rm(list=ls())
+here()
+```
+
+### Data Preparation 
+
+```{r}
+# read in required data
+
+all_elections <- readRDS(here("data", "all_elections.rds"))
+party_colour <- party_colour
+constituency_polygons <- readRDS(here("data", "constituency_polygons.rds"))
+
+#################################
+# focus on change in votes
+# map this for different parties
+
+all_elections <- all_elections %>% 
+  mutate(competed_con = factor(ifelse(is.na(con_19-con_17),"No","Yes")),
+         competed_lab = factor(ifelse(is.na(lab_19-lab_17),"No","Yes")),
+         competed_ld = factor(ifelse(is.na(ld_19-ld_17),"No","Yes")),
+         competed_green = factor(ifelse(is.na(green_19-green_17),"No","Yes")),
+         competed_pc = factor(ifelse(is.na(pc_19-pc_17),"No","Yes")),
+         competed_snp = factor(ifelse(is.na(snp_19-snp_17),"No","Yes")),)
+
+
+
+# since SNP completely dominant in Scotland, but does not run elsewhere
+# will treat England & Wales as one dataset "all_elections1"
+# Scotland will be "all_elections2"
+# examine each separately
+
+# focus on change in conservative vote in England and Wales
+# will add variable for change in conservative vote 2017-19: "con_change"
+
+all_elections <- all_elections %>% 
+  mutate(con_change = con_19 - con_17) %>% 
+  filter(!is.na(con_change))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+
+
+```
+
+```{r}
+# select variables
+
+# extract the variables or combination variables which have been chosen...
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+
+```
+
+ 
+```{r}
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                            constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+coords <- st_centroid(all_elections_polygons$geometry) %>%
+  st_coordinates()
+
+
+```
+
+### LM 
+
+```{r}
+vars13 <- c("low_qual", "over65", "student", "deprived", "density", "leave_EU", "health_very_bad", 
+            "house_owned", "household_one_person", "ethnicity_white", "unemployed", "born_elsewhere")
+vars13 <- all_elections_polygons %>% 
+  st_drop_geometry() %>% 
+  dplyr::select(vars13) %>% 
+  scale()
+
+df2019 <- all_elections_polygons %>% 
+  dplyr::select(con_change) %>% 
+  cbind(vars13)
+
+mod1917 <- lm(con_change ~ low_qual + over65 + student + deprived + density + leave_EU + health_very_bad + 
+                house_owned + household_one_person + ethnicity_white + unemployed + born_elsewhere, df2019)
+summary(mod1917)
+plot(mod1917)
+vif(mod1917)
+```
+
+
+```{r}
+mod1917.1 <- lm(con_change ~ low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere, df2019)
+summary(mod1917.1)
+plot(mod1917.1)
+vif(mod1917.1)
+
+lm_coeff <- tidy(mod1917.1$coefficients)[-c(11,1),]
+colnames(lm_coeff) <- c("Variable","Coefficient")
+
+table_lm_coeff1 <- lm_coeff[1:9,]
+table_lm_coeff1$Variable <- factor(table_lm_coeff1$Variable, levels = table_lm_coeff1$Variable[order(table_lm_coeff1$Coefficient)])
+ggplot(table_lm_coeff1 %>% arrange(Coefficient)) + geom_count(aes(x=Coefficient, y=Variable, colour=Variable)) +  
+  geom_vline(xintercept = 0, colour="blue", linetype="dotted") + 
+  theme(legend.position="none") + 
+  xlim(-16,9)
+
+
+
+```
+
+### LM PCA 
+
+
+```{r}
+vars10 <- df2019 %>% 
+  st_drop_geometry() %>% 
+  dplyr::select(c("low_qual", "over65", "student", "deprived", "density", "leave_EU", 
+                "house_owned", "unemployed", "born_elsewhere"))
+
+res.pca <- prcomp(vars10)
+
+fviz_pca_biplot(res.pca, repel = TRUE,
+                col.var = "darkblue", # Variables color
+                col.ind = "grey"  # Individuals color
+                )
+
+# Results for individuals
+res.ind <- get_pca_ind(res.pca)
+# results for variables
+res.var <- get_pca_var(res.pca)
+# Varimax rotation
+v <- varimax(res.var$coord[,1:2], normalize = TRUE)
+
+scores <- res.ind$coord[,1:2] %*% v$rotmat
+
+pca_df <- as.data.frame(cbind(df2019$con_change, scores))
+colnames(pca_df) <- c("con_change", "PC1", "PC2")
+
+mod_pca <- lm(con_change ~ PC1 + PC2, data = pca_df)
+summary(mod_pca)
+
+coef_low_qual_pca <- (v$loadings[1,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[1,2] * as.numeric(mod_pca$coefficients[3]))
+coef_over65_pca <- (v$loadings[2,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[2,2] * as.numeric(mod_pca$coefficients[3]))
+coef_student_pca <- (v$loadings[3,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[3,2] * as.numeric(mod_pca$coefficients[3]))
+coef_deprived_pca <- (v$loadings[4,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[4,2] * as.numeric(mod_pca$coefficients[3]))
+coef_density_pca <- (v$loadings[5,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[5,2] * as.numeric(mod_pca$coefficients[3]))
+coef_leave_EU_pca <- (v$loadings[6,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[6,2] * as.numeric(mod_pca$coefficients[3]))
+coef_house_owned_pca <- (v$loadings[7,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[7,2] * as.numeric(mod_pca$coefficients[3]))
+coef_unemployed_pca <- (v$loadings[8,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[8,2] * as.numeric(mod_pca$coefficients[3]))
+coef_born_elsewhere_pca <- (v$loadings[9,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[9,2] * as.numeric(mod_pca$coefficients[3]))
+
+table_pca <- as.data.frame(rbind(coef_low_qual_pca, coef_over65_pca, coef_student_pca, coef_deprived_pca,
+               coef_density_pca, coef_leave_EU_pca, coef_house_owned_pca, 
+               coef_unemployed_pca, coef_born_elsewhere_pca)) %>% 
+  cbind(names(vars10)) 
+  
+colnames(table_pca) <- c("Coefficient","Variable")
+
+table_pca1 <- table_pca[1:9,]
+table_pca1$Variable <- factor(table_pca1$Variable, levels = table_pca1$Variable[order(table_pca1$Coefficient)])
+ggplot(table_pca1 %>% arrange(Coefficient)) + geom_count(aes(x=Coefficient, y=Variable, colour=Variable)) +  
+  geom_vline(xintercept = 0, colour="blue", linetype="dotted") + 
+  theme(legend.position="none") + 
+  xlim(-5,5)
+
+
+```
+
+
+### GWR 
+
+
+```{r}
+GWRbandwidth <- gwr.sel(con_change ~ low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere, 
+                data=df2019, coords=coords, adapt=T)
+
+GWRbandwidth
+
+#run the gwr model
+gwr.model = gwr(con_change ~ low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere, 
+                data=df2019, coords=coords, 
+                adapt=GWRbandwidth, hatmatrix=TRUE, se.fit=TRUE) 
+
+gwr.model
+
+
+```
+
+
+```{r, fig.width=12, fig.height=6}
+
+# non-interaction variables
+gwr_table1 <- as.data.frame(gwr.model$SDF)[3:11]
+
+gwr_tidy_results1 <- as.data.frame(gwr.model$SDF)[3:11] %>% 
+  gather() %>% 
+  mutate(global= c(rep(gwr.model$lm$coefficients[2], 572),
+                   rep(gwr.model$lm$coefficients[3], 572),
+                   rep(gwr.model$lm$coefficients[4], 572),
+                   rep(gwr.model$lm$coefficients[5], 572),
+                   rep(gwr.model$lm$coefficients[6], 572),
+                   rep(gwr.model$lm$coefficients[7], 572),
+                   rep(gwr.model$lm$coefficients[8], 572),
+                   rep(gwr.model$lm$coefficients[9], 572),
+                   rep(gwr.model$lm$coefficients[10], 572))) %>% 
+    filter(value<25 & value>-25)
+
+ggplot(gwr_tidy_results1) + 
+  geom_density(aes(x=value, fill=key)) + 
+  labs(fill="Variable") + 
+  geom_vline(aes(xintercept=global, colour="Global Coefficient")) + 
+  facet_wrap(~key) + 
+  geom_vline(aes(xintercept=0), colour="blue", linetype="dotted") + 
+  xlim(-10,10)
+
+```
+
+### GWR PCA
+
+```{r}
+
+# now the GWR model with GWPCA components
+GWRbandwidth.pca <- gwr.sel(con_change ~ PC1 + PC2, 
+                        data=pca_df, coords=coords, adapt=T)
+
+GWRbandwidth.pca
+
+#run the gwr model
+gwr.model.pca = gwr(con_change ~ PC1 + PC2, 
+                        data=pca_df, coords=coords, 
+                adapt=GWRbandwidth.pca, hatmatrix=TRUE, se.fit=TRUE) 
+
+# before loop, define vectors
+coef_low_qual_gwrpca <- vector()
+coef_over65_gwrpca <- vector()
+coef_student_gwrpca <- vector()
+coef_deprived_gwrpca <- vector()
+coef_density_gwrpca <- vector()
+coef_leave_EU_gwrpca <- vector()
+coef_unemployed_gwrpca <- vector()
+coef_born_elsewhere_gwrpca <- vector()
+
+
+gwrPC1 <- gwr.model.pca$SDF$PC1
+gwrPC2 <- gwr.model.pca$SDF$PC2
+
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:572) {
+coef_low_qual_gwrpca[i] <- as.vector((v$loadings[1,1] * gwrPC1[i])) + 
+  (v$loadings[1,2] * gwrPC2[i])
+coef_over65_gwrpca[i] <- as.vector((v$loadings[2,1] * gwrPC1[i])) + 
+  (v$loadings[2,2] * gwrPC2[i])
+coef_student_gwrpca[i] <- as.vector((v$loadings[3,1] * gwrPC1[i])) + 
+  (v$loadings[3,2] * gwrPC2[i])
+coef_deprived_gwrpca[i] <- as.vector((v$loadings[4,1] * gwrPC1[i])) + 
+  (v$loadings[4,2] * gwrPC2[i])
+coef_density_gwrpca[i] <- as.vector((v$loadings[5,1] * gwrPC1[i])) + 
+  (v$loadings[5,2] * gwrPC2[i])
+coef_leave_EU_gwrpca[i] <- as.vector((v$loadings[6,1] * gwrPC1[i])) + 
+  (v$loadings[6,2] * gwrPC2[i])
+coef_unemployed_gwrpca[i] <- as.vector((v$loadings[7,1] * gwrPC1[i])) + 
+  (v$loadings[7,2] * gwrPC2[i])
+coef_born_elsewhere_gwrpca[i] <- as.vector((v$loadings[8,1] * gwrPC1[i])) + 
+  (v$loadings[8,2] * gwrPC2[i])
+
+}
+
+# bind into a table
+gwr_pca_table <- as.data.frame(cbind(coef_low_qual_gwrpca, coef_over65_gwrpca, coef_student_gwrpca, coef_deprived_gwrpca,
+               coef_density_gwrpca, coef_leave_EU_gwrpca, 
+               coef_unemployed_gwrpca, coef_born_elsewhere_gwrpca))
+
+```
+
+
+```{r}
+all_elections_gwrpca <- cbind(df2019, gwr_pca_table)
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_low_qual_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_low_qual_int_gwpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_over65_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_over65_int_gwpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_student_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_student_int_gwpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_deprived_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_deprived_int_gwpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_density_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_density_int_gwpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_leave_EU_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_leave_EU_int_gwpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_unemployed_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_unemployed_int_gwpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=coef_born_elsewhere_gwrpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-10,10)) + 
+  labs(fill="Std Devs", title = "coef_born_elsewhere_int_gwpca")
+```
+
+```{r}
+
+bins <- seq(-10,10,1)
+all_elections_gwrpca$bins_low_qual <- cut(coef_low_qual_gwrpca, bins)
+all_elections_gwrpca$bins_over65 <- cut(coef_over65_gwrpca, bins)
+all_elections_gwrpca$bins_student <- cut(coef_student_gwrpca, bins)
+all_elections_gwrpca$bins_deprived <- cut(coef_deprived_gwrpca, bins)
+all_elections_gwrpca$bins_density <- cut(coef_density_gwrpca, bins)
+all_elections_gwrpca$bins_leave_EU <- cut(coef_leave_EU_gwrpca, bins)
+all_elections_gwrpca$bins_unemployed <- cut(coef_unemployed_gwrpca, bins)
+all_elections_gwrpca$bins_born_elsewhere <- cut(coef_born_elsewhere_gwrpca, bins)
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_low_qual)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_low_qual_int_gwrpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_over65)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_over65_int_gwrpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_student)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_student_int_gwrpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_deprived)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_deprived_int_gwrpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_density)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_density_int_gwrpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_leave_EU)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_leave_EU_int_gwrpca")
+
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_unemployed)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_unemployed_int_gwrpca")
+ggplot(all_elections_gwrpca) + geom_sf(aes(fill=bins_born_elsewhere)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_born_elsewhere_int_gwpca")
+
+```
+
+
+
+```{r}
+
+newcols <- all_elections_gwrpca[,14:21] %>% 
+  st_drop_geometry()
+max_sd <- colnames(newcols[apply(newcols,1,which.max)]) %>% 
+  cbind(all_elections_gwrpca)
+colnames(max_sd)[colnames(max_sd) == '.'] <- "maxvar"
+max_sd$maxvar <- str_remove(max_sd$maxvar, "\\.[[:digit:]]+") %>% 
+  factor()
+
+ggplot(max_sd) + geom_sf(aes(fill=maxvar)) + 
+  scale_fill_brewer(palette = "Set2") + 
+  labs(title = "Coeff Highest Positive Value")
+
+newcols <- all_elections_gwrpca[,14:21] %>% 
+  st_drop_geometry() %>% 
+  abs()
+max_sd <- colnames(newcols[apply(newcols,1,which.max)]) %>% 
+  cbind(all_elections_gwrpca)
+colnames(max_sd)[colnames(max_sd) == '.'] <- "maxvar"
+max_sd$maxvar <- str_remove(max_sd$maxvar, "\\.[[:digit:]]+") %>% 
+  factor()
+
+ggplot(max_sd) + geom_sf(aes(fill=maxvar)) + 
+  scale_fill_brewer(palette = "Set2") + 
+  labs(title = "Coeff Highest Absolute Value")
+```
+
+### GWR GWPCA
+```{r}
+# first, perform the GWPCA
+
+vars10 <- df2019 %>% 
+  st_drop_geometry() %>% 
+  dplyr::select(c("low_qual", "over65", "student", "deprived", "density", "leave_EU", 
+                "house_owned", "unemployed", "born_elsewhere"))
+
+rownames(coords) <- NULL
+d1s <- SpatialPointsDataFrame(coords, vars10)
+
+bw.choice <- bw.gwpca(d1s,vars=colnames(d1s@data),k=2)
+pca.gw.auto  <- gwpca(d1s,vars=colnames(d1s@data),bw=bw.choice,k=2,scores = TRUE)
+
+scores <- as.data.frame(pca.gw.auto$pca$scores)
+PC1gw <- scores[,1]
+PC2gw <- scores[,2]
+
+
+pcagw.df <- as.data.frame(cbind(df2019$con_change, PC1gw, PC2gw))
+colnames(pcagw.df) <- c("con_change", "PC1gw", "PC2gw")
+
+# pcagw.df <- as.data.frame(cbind(df19.17$con, PC1gw, PC2gw, df19.17$geometry)) %>% 
+#   st_as_sf()
+# colnames(pcagw.df) <- c("con", "PC1gw", "PC2gw", "geometry")
+# str(pcagw.df)
+
+# now the GWR model with GWPCA components
+GWRbandwidth.gwpca <- gwr.sel(con_change ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, adapt=T)
+
+GWRbandwidth.gwpca
+
+#run the gwr model
+gwr.model.gwpca = gwr(con_change ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, 
+                adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
+
+
+# examine first two components
+head(gwr.model.gwpca$SDF$PC1gw)
+head(gwr.model.gwpca$SDF$PC2gw)
+
+# before loop, define vectors
+coef_low_qual_gwpca <- vector()
+coef_over65_gwpca <- vector()
+coef_student_gwpca <- vector()
+coef_deprived_gwpca <- vector()
+coef_density_gwpca <- vector()
+coef_leave_EU_gwpca <- vector()
+coef_unemployed_gwpca <- vector()
+coef_born_elsewhere_gwpca <- vector()
+
+
+# loadings from gw pca
+lds <- as.data.frame(pca.gw.auto$loadings)
+
+gwPC1 <- gwr.model.gwpca$SDF$PC1gw
+gwPC2 <- gwr.model.gwpca$SDF$PC2gw
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:572) {
+coef_low_qual_gwpca[i] <- as.vector((lds[i,"low_qual.PC1"] * gwPC1[i])) + 
+  (lds[i,"low_qual.PC2"] * gwPC2[i])
+coef_over65_gwpca[i] <- as.vector((lds[i,"over65.PC1"] * gwPC1[i])) + 
+  (lds[i,"over65.PC2"] * gwPC2[i])
+coef_student_gwpca[i] <- as.vector((lds[i,"student.PC1"] * gwPC1[i])) + 
+  (lds[i,"student.PC2"] * gwPC2[i])
+coef_deprived_gwpca[i] <- as.vector((lds[i,"deprived.PC1"] * gwPC1[i])) + 
+  (lds[i,"deprived.PC2"] * gwPC2[i])
+coef_density_gwpca[i] <- as.vector((lds[i,"density.PC1"] * gwPC1[i])) + 
+  (lds[i,"density.PC2"] * gwPC2[i])
+coef_leave_EU_gwpca[i] <- as.vector((lds[i,"leave_EU.PC1"] * gwPC1[i])) + 
+  (lds[i,"leave_EU.PC2"] * gwPC2[i])
+coef_unemployed_gwpca[i] <- as.vector((lds[i,"unemployed.PC1"] * gwPC1[i])) + 
+  (lds[i,"unemployed.PC2"] * gwPC2[i])
+coef_born_elsewhere_gwpca[i] <- as.vector((lds[i,"born_elsewhere.PC1"] * gwPC1[i])) + 
+  (lds[i,"born_elsewhere.PC2"] * gwPC2[i])
+
+}
+
+# bind into a table
+gwr_gwpca_table <- as.data.frame(cbind(coef_low_qual_gwpca, coef_over65_gwpca, coef_student_gwpca, coef_deprived_gwpca,
+               coef_density_gwpca, coef_leave_EU_gwpca, 
+               coef_unemployed_gwpca, coef_born_elsewhere_gwpca))
+
+```
+
+
+
+```{r}
+
+all_elections_gwrgwpca <- cbind(df2019, gwr_gwpca_table)
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_low_qual_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_low_qual_int_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_over65_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_over65_int_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_student_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_student_int_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_deprived_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_deprived_int_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_density_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_density_int_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_leave_EU_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_leave_EU_int_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_unemployed_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_unemployed_int_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=coef_born_elsewhere_gwpca)) + 
+  scale_fill_gradient2(low="red",high="blue",midpoint = 0, limits=c(-5,5)) + 
+  labs(fill="Std Devs", title = "coef_born_elsewhere_int_gwpca")
+```
+
+```{r}
+
+bins <- seq(-5,5,1)
+all_elections_gwrgwpca$bins_low_qual <- cut(coef_low_qual_gwpca, bins)
+all_elections_gwrgwpca$bins_over65 <- cut(coef_over65_gwpca, bins)
+all_elections_gwrgwpca$bins_student <- cut(coef_student_gwpca, bins)
+all_elections_gwrgwpca$bins_deprived <- cut(coef_deprived_gwpca, bins)
+all_elections_gwrgwpca$bins_density <- cut(coef_density_gwpca, bins)
+all_elections_gwrgwpca$bins_leave_EU <- cut(coef_leave_EU_gwpca, bins)
+all_elections_gwrgwpca$bins_unemployed <- cut(coef_unemployed_gwpca, bins)
+all_elections_gwrgwpca$bins_born_elsewhere <- cut(coef_born_elsewhere_gwpca, bins)
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_low_qual)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_low_qual_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_over65)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_over65_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_student)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_student_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_deprived)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_deprived_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_density)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_density_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_leave_EU)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_leave_EU_gwpca")
+
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_unemployed)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_unemployed_gwpca")
+ggplot(all_elections_gwrgwpca) + geom_sf(aes(fill=bins_born_elsewhere)) + 
+  scale_fill_brewer(palette = "Spectral") + 
+  labs(fill="Std Devs", title = "coef_born_elsewhere_gwpca")
+
+```
+
+
+```{r}
+
+newcols <- all_elections_gwrgwpca[,14:21] %>% 
+  st_drop_geometry()
+max_sd <- colnames(newcols[apply(newcols,1,which.max)]) %>% 
+  cbind(all_elections_gwrgwpca)
+colnames(max_sd)[colnames(max_sd) == '.'] <- "maxvar"
+max_sd$maxvar <- str_remove(max_sd$maxvar, "\\.[[:digit:]]+") %>% 
+  factor()
+
+ggplot(max_sd) + geom_sf(aes(fill=maxvar)) + 
+  scale_fill_brewer(palette = "Set2") + 
+  labs(title = "Coeff Highest Positive Value")
+
+newcols <- all_elections_gwrgwpca[,14:21] %>% 
+  st_drop_geometry() %>% 
+  abs()
+max_sd <- colnames(newcols[apply(newcols,1,which.max)]) %>% 
+  cbind(all_elections_gwrgwpca)
+colnames(max_sd)[colnames(max_sd) == '.'] <- "maxvar"
+max_sd$maxvar <- str_remove(max_sd$maxvar, "\\.[[:digit:]]+") %>% 
+  factor()
+
+ggplot(max_sd) + geom_sf(aes(fill=maxvar)) + 
+  scale_fill_brewer(palette = "Set2") + 
+  labs(title = "Coeff Highest Absolute Value")
+```
+
+
+
+```{r, fig.height=12, fig.width=12}
+
+# LISA clusters for coefficients of change variables
+
+# construct two matrices for spatial analysis
+neighbours <- poly2nb(df2019, queen=T)
+weights <- nb2listw(neighbours, style="W", zero.policy = T)
+
+# set arrangement the 8 plots
+par(mfrow = c(4,2))
+
+for (i in 1:8) {
+
+#######
+
+locali <- localmoran(gwr_gwpca_table[,i], weights, zero.policy = TRUE)
+
+######
+
+# Plot LISA clusters
+
+quadrant <- vector(mode="numeric",length=nrow(locali))
+
+# centers the variable of interest around its mean
+m.lowqual.change <- gwr_gwpca_table[,i] - mean(gwr_gwpca_table[,i])     
+
+# centers the local Moran's around the mean
+m.local <- locali[,1] - mean(locali[,1])    
+
+# significance threshold
+signif <- 0.1 
+
+# builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
+# andplaces non-significant Moran in the category 0.
+quadrant[m.lowqual.change >0 & m.local>0] <- 4  
+quadrant[m.lowqual.change <0 & m.local<0] <- 1      
+quadrant[m.lowqual.change <0 & m.local>0] <- 2
+quadrant[m.lowqual.change >0 & m.local<0] <- 3
+quadrant[locali[,5]>signif] <- 0   
+
+# plot in r
+brks <- c(0,1,2,3,4)
+colors <- c("white","blue",rgb(0,0,1,alpha=0.4),rgb(1,0,0,alpha=0.4),"red")
+plot(df2019$geometry, border="gray", col=colors[findInterval(quadrant,brks,all.inside=FALSE)])
+box()
+legend("bottomleft", legend = c("insignificant","low-low","low-high","high-low","high-high"),
+       fill=colors, bty="n")
+title(main = paste("LISA Clusters: ", names(gwr_pca_table)[i]))
+
+}
+
+```
+
+```{r}
+saveRDS(gwr_gwpca_table, "con_diff_gwr_gwpca.rds")
+saveRDS(gwr_pca_table, "con_diff_gwr_pca.rds")
+saveRDS(gwr_table1, "con_diff_gwr.rds")
+saveRDS(table_pca, "con_diff_lm_pca.rds")
+saveRDS(table_lm_coeff1, "con_diff_lm.rds")
+```
+
+
