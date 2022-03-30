@@ -1,0 +1,303 @@
+---
+title: "random_slopes_intercepts"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+
+library(sf)
+library(parlitools)
+library(here)
+library(ggfortify)
+library(patchwork)
+library(stringr)
+library(here)
+library(GGally)
+library(spatialreg)
+library(spdep)
+library(broom)
+library(spgwr)
+library(gridExtra)
+library(grid)
+library(Hmisc)
+library(MASS)
+library(stargazer)
+library(car)
+library(factoextra)
+library(GWmodel)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(ggpubr)
+library(RColorBrewer)
+library(tidyverse)
+library(kableExtra)
+library(lme4)
+library(lmerTest)
+library(colorspace)
+
+rm(list=ls())
+here()
+```
+
+# 
+
+
+```{r}
+all_elections <- readRDS(here("data", "all_elections.rds"))
+constituency_polygons <- readRDS(here("data", "constituency_polygons.rds"))
+
+all_elections <- all_elections %>% 
+  mutate(con_change = con_19 - con_17) %>% 
+  filter(!is.na(con_change))
+all_elections1 <- all_elections %>% 
+  filter(country != "Scotland")
+all_elections2 <- all_elections %>% 
+  filter(country == "Scotland")
+
+all_elections1 <- all_elections1 %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         density = population_density,
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density)
+
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                                    constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf()
+
+all_elections_polygons_simp <- left_join(all_elections1 %>% st_drop_geometry(), 
+                                    constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+
+all_elections_polygons <-all_elections_polygons %>% 
+  mutate(con_change1 = (con_19 - con_17) / (100 - con_17),
+         county = factor(county))
+
+counties_simp <- readRDS(here("data","counties_simp.rds"))
+```
+
+## Simple Linear Model
+
+```{r, echo=TRUE}
+model1 <- lm(con_change1 ~ low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere, data=all_elections_polygons)
+summary(model1)
+```
+
+## Random Intercept Only
+
+```{r}
+# varying intercept
+model2 <- lmer(con_change1 ~ low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1|county), data=all_elections_polygons)
+model2
+model2_intercepts <- as.data.frame(ranef(model2))[,3:5]
+colnames(model2_intercepts) <- c("county","intercept_value","intercept_sd")
+model2_intercepts <- model2_intercepts %>% 
+  left_join(counties_simp) %>% 
+  st_as_sf()
+
+ggplot(model2_intercepts) + 
+  geom_sf(aes(fill=intercept_value)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Random Intercept Model")
+
+# ggplot(model2_intercepts) + 
+#   geom_sf(aes(fill=intercept_sd)) + 
+#   scale_fill_fermenter(type = "div")
+```
+
+
+## Random Slopes and Intercepts
+
+```{r}
+# varying slope and intercept
+model3.1 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+low_qual|county), 
+               data=all_elections_polygons)
+model3.2 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+over65|county), 
+               data=all_elections_polygons)
+model3.3 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+student|county), 
+               data=all_elections_polygons)
+model3.4 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+deprived|county), 
+               data=all_elections_polygons)
+model3.5 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+density|county), 
+               data=all_elections_polygons)
+model3.6 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+leave_EU|county), 
+               data=all_elections_polygons)
+model3.7 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+house_owned|county), 
+               data=all_elections_polygons)
+model3.8 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+unemployed|county), 
+               data=all_elections_polygons)
+model3.9 <- lmer(con_change1 ~ 1 + low_qual + over65 + student + deprived + density + leave_EU + 
+                house_owned + unemployed + born_elsewhere + (1+born_elsewhere|county), 
+               data=all_elections_polygons)
+
+d3 <- as.data.frame(ranef(model3.1))[,2:5] %>% 
+  cbind(as.data.frame(ranef(model3.2))[,4:5]) %>% 
+  cbind(as.data.frame(ranef(model3.3))[,4:5]) %>% 
+  cbind(as.data.frame(ranef(model3.4))[,4:5]) %>% 
+  cbind(as.data.frame(ranef(model3.5))[,4:5]) %>% 
+  cbind(as.data.frame(ranef(model3.6))[,4:5]) %>% 
+  cbind(as.data.frame(ranef(model3.7))[,4:5]) %>% 
+  cbind(as.data.frame(ranef(model3.8))[,4:5]) %>% 
+  cbind(as.data.frame(ranef(model3.9))[,4:5])
+colnames(d3) <- c("term","county","low_qual_val","low_qual_sd","over_65_val","over_65_sd","student_val","student_sd",
+                  "deprived_val","deprived_sd","density_val","density_sd","leave_EU_val","leave_EU_sd",
+                  "house_owned_val","house_owned_sd","unemployed_val","unemployed_sd","born_elsewhere_val","born_elsewhere_sd")
+d3_slope <- d3 %>% filter(term == "low_qual") %>% 
+  mutate(term = rep("slope",53)) %>% 
+  left_join(counties_simp) %>% 
+  st_as_sf()
+d3_intercept <- d3 %>% filter(term == "(Intercept)") %>% 
+  mutate(term = rep("intercept",53)) %>% 
+  left_join(counties_simp) %>% 
+  st_as_sf()
+```
+
+
+```{r}
+p1_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=low_qual_val)) +
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Low Qualifications")
+p2_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=over_65_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Over 65")
+p3_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=student_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Students")
+p4_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=deprived_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Deprived")
+p5_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=density_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Density")
+p6_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=leave_EU_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Leave EU")
+p7_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=house_owned_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "House Owned")
+p8_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=unemployed_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Unemployed")
+p9_intercept <- ggplot(d3_intercept) + 
+  geom_sf(aes(fill=born_elsewhere_val)) + 
+  scale_fill_continuous_diverging(palette = 'Tropic', mid = 0, name = "Intercepts") +  
+  labs(title = "Born Elsewhere")
+#
+  
+p1_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=low_qual_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Low Qualifications")
+p2_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=over_65_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Over 65")
+p3_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=student_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Students")
+p4_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=deprived_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Deprived")
+p5_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=density_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Density")
+p6_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=leave_EU_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Leave EU")
+p7_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=house_owned_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "House Owned")
+p8_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=unemployed_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Unemployed")
+p9_slope <- ggplot(d3_slope) + 
+  geom_sf(aes(fill=born_elsewhere_val)) + 
+  scale_fill_continuous_diverging(palette = 'Purple_Brown', mid = 0, name = "Slopes") +  
+  labs(title = "Born Elsewhere")
+
+```
+
+
+### Random Intercepts
+
+```{r, fig.width=12, fig.height=12}
+ggarrange(p1_intercept, p2_intercept, p3_intercept,
+          p4_intercept, p5_intercept, p6_intercept, 
+          p7_intercept, p8_intercept, p9_intercept, 
+          ncol=3, nrow=3, common.legend = TRUE, legend="right")
+
+```
+
+
+### Random Slopes
+
+```{r, fig.width=12, fig.height=12}
+ggarrange(p1_slope, p2_slope, p3_slope,
+          p4_slope, p5_slope, p6_slope, 
+          p7_slope, p8_slope, p9_slope, 
+          ncol=3, nrow=3, common.legend = TRUE, legend="right")
+
+```
+ 
+
+### Summary of AIC Values from Models
+
+```{r}
+AICtable <- tibble(Model = c("Model1","Model2","Model3.1","Model3.2","Model3.3","Model3.4","Model3.5","Model3.6",
+                             "Model3.7","Model3.8","Model3.9"),
+              Features = c("Simple Linear regression",
+                        "Random Intercept Only",
+                        "Random Intercept and Random Slope: low_qual",
+                        "Random Intercept and Random Slope: over65",
+                        "Random Intercept and Random Slope: student",
+                        "Random Intercept and Random Slope: deprived",
+                        "Random Intercept and Random Slope: density",
+                        "Random Intercept and Random Slope: leave_EU",
+                        "Random Intercept and Random Slope: house_owned",
+                        "Random Intercept and Random Slope: unemployed",
+                        "Random Intercept and Random Slope: born_elsewhere"), 
+              AICvalue = c(AIC(model1), AIC(model2), AIC(model3.1), AIC(model3.2),
+                           AIC(model3.3), AIC(model3.4), AIC(model3.5), AIC(model3.6),
+                           AIC(model3.7), AIC(model3.8), AIC(model3.9)))
+kable(AICtable, digits=1) %>% 
+  kable_classic(full_width = F, html_font = "Cambria", font_size=25)
+```
+
+
+
+
