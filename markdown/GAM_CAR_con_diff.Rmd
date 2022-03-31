@@ -99,7 +99,7 @@ ggplot(all_elections_polygons) +
 cons_constit <- all_elections_polygons %>%
   mutate(county=factor(county)) %>%
   group_by(county) %>%
-  summarise(mean_con = weighted.mean(con_change1,electorate_19))
+  summarise(mean_con = weighted.mean(con_change1,total_vote_19))
 adj_list <- st_touches(cons_constit,cons_constit)
 names(adj_list) <- factor(cons_constit$county)
 
@@ -113,7 +113,7 @@ CAR_model <- gam(mean_con ~ s(county,
                  method='REML')
 
 cons_constit$fitted <- predict(CAR_model)
-pl1 <- ggplot(cons_constit,aes(fill=fitted)) + geom_sf(lwd=0.05) +
+pl1 <- ggplot(cons_constit,aes(fill=fitted)) + geom_sf(lwd=0.25, colour="black") +
   scale_fill_distiller(name='Fitted\nValue',type = "div") + 
   labs(title = "Converted To Conservatives", 
        subtitle = "2019 from 2017")
@@ -130,7 +130,7 @@ pl2 <- ggplot(cons_constit,aes(x=mean_con,y=fitted)) +
   geom_smooth(method=MASS::rlm,se = FALSE) + coord_equal()
 
 pl3 <- ggplot(cons_constit,aes(fill=mean_con)) +
-  geom_sf(lwd=.05) +
+  geom_sf(lwd=.25, colour="black") +
   scale_fill_distiller(name="Actual\nProportion",type = "div") + 
   labs(title = "Converted To Conservatives", 
        subtitle = "2019 from 2017")
@@ -182,7 +182,7 @@ cc_CAR <- gam(con_change1 ~ low_qual + over65 + student + deprived + density + l
                 house_owned + unemployed + born_elsewhere +
                 s(county,bs='mrf',xt=list(nb=nlist)),
               data=all_elections_polygons, family=gaussian, 
-              weight=electorate_19, method='REML')
+              weight=total_vote_19, method='REML')
 summary(cc_CAR)
 
 ```
@@ -202,7 +202,7 @@ county_extract <- tibble(low_qual=rep(0,53),
                          county=levels(counties$county)) 
 counties_simp <- counties_simp %>% mutate(agamma_i=predict(cc_CAR,
                                                 newdata = county_extract))
-plot1 <- ggplot(counties_simp,aes(fill=agamma_i)) + geom_sf() +
+plot1 <- ggplot(counties_simp,aes(fill=agamma_i)) + geom_sf(lwd=.25, colour="black") +
   scale_fill_distiller(name=expression(alpha+gamma[i]),direction=1)
 
 #
@@ -210,7 +210,7 @@ plot1 <- ggplot(counties_simp,aes(fill=agamma_i)) + geom_sf() +
 counties_simp <- counties_simp %>% 
   mutate(gamma_i=predict(cc_CAR,
                          newdata = county_extract,type='terms')[,10])
-plot2 <- ggplot(counties_simp,aes(fill=gamma_i)) + geom_sf() +
+plot2 <- ggplot(counties_simp,aes(fill=gamma_i)) + geom_sf(lwd=.25, colour="black") +
   scale_fill_distiller(type='div',
                        name=expression(gamma[i]))
 
@@ -245,7 +245,7 @@ cc_CAR2 <- gam(con_change1 ~ low_qual + over65 + student + deprived + density + 
                  s(county,bs='mrf',xt=list(nb=nlist), 
                    by=leave_EU,k=10),
                data=all_elections_polygons, family=gaussian, 
-               weight=electorate_19, method='REML')
+               weight=total_vote_19, method='REML')
 summary(cc_CAR2)
 
 county_extract2 <- tibble(low_qual=rep(0,53),
@@ -261,7 +261,7 @@ county_extract2 <- tibble(low_qual=rep(0,53),
                          `county:leave_EU`=levels(counties$county)) 
 counties_simp <- counties_simp %>% mutate(agamma_i=predict(cc_CAR2,
                                                            newdata = county_extract2))
-b1 <- ggplot(counties_simp,aes(fill=agamma_i)) + geom_sf() +
+b1 <- ggplot(counties_simp,aes(fill=agamma_i)) + geom_sf(lwd=.25, colour="black") +
   scale_fill_distiller(name=expression(alpha+gamma[0]),direction=1)
 
 #
@@ -270,16 +270,16 @@ b1 <- ggplot(counties_simp,aes(fill=agamma_i)) + geom_sf() +
 
 # time consuming operation, so doing it then saving it...
 
-# wmeans<- all_elections_polygons %>% group_by(county) %>% 
-#   summarise(low_qual = weighted.mean(low_qual,electorate_19), 
-#             over65 = weighted.mean(over65,electorate_19), 
-#             student = weighted.mean(student,electorate_19), 
-#             deprived = weighted.mean(deprived,electorate_19), 
-#             density = weighted.mean(density,electorate_19), 
-#             leave_EU = weighted.mean(leave_EU,electorate_19), 
-#             house_owned = weighted.mean(house_owned,electorate_19), 
-#             unemployed = weighted.mean(unemployed,electorate_19), 
-#             born_elsewhere = weighted.mean(born_elsewhere,electorate_19)
+# wmeans<- all_elections_polygons %>% group_by(county) %>%
+#   summarise(low_qual = weighted.mean(low_qual,total_vote_19),
+#             over65 = weighted.mean(over65,total_vote_19),
+#             student = weighted.mean(student,total_vote_19),
+#             deprived = weighted.mean(deprived,total_vote_19),
+#             density = weighted.mean(density,total_vote_19),
+#             leave_EU = weighted.mean(leave_EU,total_vote_19),
+#             house_owned = weighted.mean(house_owned,total_vote_19),
+#             unemployed = weighted.mean(unemployed,total_vote_19),
+#             born_elsewhere = weighted.mean(born_elsewhere,total_vote_19)
 #             )
 # saveRDS(wmeans,here("data","wmeans.RDS"))
 
@@ -289,10 +289,10 @@ counties_simp <- counties_simp %>%
   mutate(gamma_i=predict(cc_CAR2,
                          newdata = county_extract2,type='terms')[,11], 
          slope = (gamma_i / wmeans$leave_EU))
-b2 <- ggplot(counties_simp,aes(fill=gamma_i)) + geom_sf() +
+b2 <- ggplot(counties_simp,aes(fill=gamma_i)) + geom_sf(lwd=.25, colour="black") +
   scale_fill_distiller(type='div',
                        name=expression(gamma[leave_EU]))
-b3 <- ggplot(counties_simp,aes(fill=slope)) + geom_sf() +
+b3 <- ggplot(counties_simp,aes(fill=slope)) + geom_sf(lwd=.25, colour="black") +
   scale_fill_distiller(type='div',
                        name=("Slope:\nleave_EU"))
 
@@ -327,7 +327,7 @@ cc_CAR3 <- gam(con_change1 ~ low_qual + over65 + student + deprived + density + 
                          s(county,bs='mrf',xt=list(nb=nlist), 
                            by=born_elsewhere,k=6),
                data=all_elections_polygons, family=gaussian, 
-               weight=electorate_19, method='REML')
+               weight=total_vote_19, method='REML')
 summary(cc_CAR3)
 
 county_extract3 <- tibble(low_qual=rep(1,53),
@@ -352,7 +352,7 @@ county_extract3 <- tibble(low_qual=rep(1,53),
                          ) 
 counties_simp3 <- counties_simp %>% mutate(agamma_i=predict(cc_CAR3,
                                                            newdata = county_extract3))
-ggplot(counties_simp3,aes(fill=agamma_i)) + geom_sf() +
+ggplot(counties_simp3,aes(fill=agamma_i)) + geom_sf(lwd=.25, colour="black") +
   scale_fill_distiller(name=expression(alpha+gamma[0]),direction=1)
 
 #
@@ -360,7 +360,7 @@ ggplot(counties_simp3,aes(fill=agamma_i)) + geom_sf() +
 counties_simp3 <- counties_simp3 %>% 
   mutate(gamma_i=predict(cc_CAR3,
                          newdata = county_extract3,type='terms')[,11], 
-         slope = gamma_i / weighted.mean(all_elections_polygons$leave_EU,all_elections_polygons$electorate_19))
+         slope = gamma_i / weighted.mean(all_elections_polygons$leave_EU,all_elections_polygons$total_vote_19))
 
 counties_simp3 <- counties_simp3 %>% 
   mutate(gamma_low_qual=predict(cc_CAR3,
@@ -454,58 +454,58 @@ c9 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=gamma_born_elsewhere),lwd=
 v1 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_low_qual),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Low Qualifications")
 v2 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_over65),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Over 65")
 v3 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_student),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Student")
 v4 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_deprived),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Deprived")
 v5 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_density),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Density")
 v6 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_leave_EU),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Leave EU")
 v7 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_house_owned),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "House Owned")
 v8 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_unemployed),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Unemployed")
 v9 <- ggplot() + geom_sf(data=counties_simp3,aes(fill=slope_born_elsewhere),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Born Elsewhere")
 
 ```
 
-### 'Term' Measures
+<!-- ### 'Term' Measures -->
 
-```{r, fig.width=12, fig.height=12}
+<!-- ```{r, fig.width=12, fig.height=12} -->
 
-ggarrange(c1,c2,c3,c4,c5,c6,c7,c8,c9, 
-          ncol=3, nrow=3, common.legend = TRUE, legend="right")
-```
+<!-- ggarrange(c1,c2,c3,c4,c5,c6,c7,c8,c9,  -->
+<!--           ncol=3, nrow=3, common.legend = TRUE, legend="right") -->
+<!-- ``` -->
 
 ### Slope Measures 
 #### (Term / Predictor)
@@ -573,7 +573,7 @@ summary(con_change1_CAR2)
 all_elections_polygons_simp <- all_elections_polygons_simp %>% mutate(agamma_i=predict(con_change1_CAR2))
 ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=agamma_i),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0) + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black")
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black")
 
 
 all_elections_polygons_simp<- all_elections_polygons_simp %>% 
@@ -652,58 +652,58 @@ g9 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=gamma_born_el
 s1 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_low_qual),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Low Qualifications")
 s2 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_over65),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Over 65")
 s3 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_student),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Student")
 s4 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_deprived),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Deprived")
 s5 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_density),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Density")
 s6 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_leave_EU),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Leave EU")
 s7 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_house_owned),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "House Owned")
 s8 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_unemployed),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Unemployed")
 s9 <- ggplot() + geom_sf(data=all_elections_polygons_simp,aes(fill=slope_born_elsewhere),lwd=NA) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
                        name="Slope") + 
-  geom_sf(data=counties_simp, alpha=0,lwd=.45, colour="black") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Born Elsewhere")
 
 ```
 
-### 'Term' Measures
+<!-- ### 'Term' Measures -->
 
-```{r, fig.width=12, fig.height=12}
+<!-- ```{r, fig.width=12, fig.height=12} -->
 
-ggarrange(g1,g2,g3,g4,g5,g6,g7,g8,g9, 
-          ncol=3, nrow=3, common.legend = TRUE, legend="right")
-```
+<!-- ggarrange(g1,g2,g3,g4,g5,g6,g7,g8,g9,  -->
+<!--           ncol=3, nrow=3, common.legend = TRUE, legend="right") -->
+<!-- ``` -->
 
 ### Slope Measures 
 #### (Term / Predictor)
@@ -716,19 +716,19 @@ ggarrange(s1,s2,s3,s4,s5,s6,s7,s8,s9,
 
 ### Seeing the same variable results side by side at different levels
 
-#### Terms Comparisons
+<!-- #### Terms Comparisons -->
 
-```{r, fig.width=12, fig.height=12}
+<!-- ```{r, fig.width=12, fig.height=12} -->
 
-ggarrange(c1,g1,c2,g2,c3,g3, 
-          ncol=2, nrow=3, common.legend = TRUE, legend="right")
+<!-- ggarrange(c1,g1,c2,g2,c3,g3,  -->
+<!--           ncol=2, nrow=3, common.legend = TRUE, legend="right") -->
 
-ggarrange(c4,g4,c5,g5,c6,g6, 
-          ncol=2, nrow=3, common.legend = TRUE, legend="right")
+<!-- ggarrange(c4,g4,c5,g5,c6,g6,  -->
+<!--           ncol=2, nrow=3, common.legend = TRUE, legend="right") -->
 
-ggarrange(c7,g7,c8,g8,c9,g9, 
-          ncol=2, nrow=3, common.legend = TRUE, legend="right")
-```
+<!-- ggarrange(c7,g7,c8,g8,c9,g9,  -->
+<!--           ncol=2, nrow=3, common.legend = TRUE, legend="right") -->
+<!-- ``` -->
 
 #### Slopes Comparisons
 
