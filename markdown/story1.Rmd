@@ -1,0 +1,948 @@
+---
+title: "story1"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+
+library(sf)
+library(parlitools)
+library(here)
+library(ggfortify)
+library(patchwork)
+library(stringr)
+library(here)
+library(GGally)
+library(spatialreg)
+library(spdep)
+library(broom)
+library(spgwr)
+library(gridExtra)
+library(grid)
+library(Hmisc)
+library(MASS)
+library(stargazer)
+library(car)
+library(factoextra)
+library(GWmodel)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(ggpubr)
+library(RColorBrewer)
+library(tidyverse)
+library(kableExtra)
+library(mgcv)
+library(colorspace)
+library(gclus)
+library(lme4)
+library(ggplot2); theme_set(theme_dark())
+
+rm(list=ls())
+here()
+```
+
+### Research Question
+
+The 2019 UK General Election saw the Conservative Party improve their position dramatically in the House of Commons. Not only did they hold the largest number of seats, as in the previous election of 2017, but now they held a landslide overall majority of 80 seats. Many of the gains which the Conservatives made were in seats which were long-held by Labour candidates, often referred to as the *'red wall'*. These are a set of constituencies in England and Wales, mainly in the Midlands, Northern England, and North East Wales, which have historically tended to support the Labour party. These areas were also generally associated with high levels of support for leaving the EU in the Brexit referendum. It is often pointed out that there is a temptation for political commentators in the popular press to speak of regions such as these as though they were a monolith - all composed of similarly thinking and similarly motivated individuals. This project aims to use census data and the results of the election in each constituency to examine the degree to which each of several socio-economic characteristics impacted the observed change in Conservative vote, and how this varied across the country. In particular, I wish to see if the change in voting pattern which undeniably occurred in these *'red wall'* seats has one simple explanation which applies across the region, or if different factors are at play in different parts of this traditional Labour stronghold.
+
+
+*** 
+
+
+
+```{r}
+all_elections <- readRDS(here("data", "all_elections.rds"))
+constituency_polygons <- readRDS(here("data", "constituency_polygons.rds"))
+```
+
+```{r}
+
+# dfs WITHOUT Isle of Wight
+all_elections1 <- all_elections %>% 
+# options for experimenting with different dependent variable structures...
+#  mutate(con_change1 = con_19) %>% 
+#  mutate(con_change1 = log( (con_19/(1-con_19)) / (con_17/(1-con_17)) )) %>% 
+  mutate(con_change1 = 100*(con_19 - con_17) / (100 - con_17)) %>% 
+  filter(!is.na(con_change1)) %>% 
+  filter(country != "Scotland") %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         log_density = log(population_density),
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density, 
+         con_flip = ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0), 
+         county = factor(county)) %>% 
+  subset(county != "Isle of Wight")
+
+# df with detailed constituency sf polygons for contiguity computations
+all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
+                                    constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf()
+
+# df with simplified constituency sf polygons for making maps
+all_elections_polygons_simp <- left_join(all_elections1 %>% st_drop_geometry(), 
+                                    constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+# df with detailed county sf polygons for contiguity computations
+counties <- readRDS(here("data", "counties.rds")) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county))
+
+# df with simplified county sf polygons for making maps
+counties_simp <-readRDS(here("data","counties_simp.rds")) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county))
+
+# weighted means for variables at county level, weights by size of electorate
+wmeans <- readRDS(here("data","wmeans.RDS")) %>% 
+  subset(county != "Isle of Wight")
+
+# weighted means for centred variables
+wmeans_centred <- readRDS(here("data","wmeans_centred.RDS")) %>% 
+  subset(county != "Isle of Wight")
+
+wmeans_regions <- all_elections_polygons %>% 
+  st_drop_geometry() %>% 
+  select(con_change1, over65, deprived, total_vote_19, region) %>% 
+  group_by(region) %>% 
+  summarise(con_change1 = weighted.mean(con_change1, total_vote_19), 
+            over65 = weighted.mean(over65, total_vote_19), 
+            deprived = weighted.mean(deprived, total_vote_19))
+
+# regions <- all_elections_polygons %>%
+#   dplyr::select(region, geometry) %>%
+#   st_as_sf() %>%
+#   group_by(region) %>%
+#   summarise()
+# saveRDS(regions, here("data","regions.rds"))
+regions <- readRDS(here("data","regions.rds"))
+regions$region <- factor(regions$region)
+
+# regions_simp <- regions %>% 
+#   st_simplify(dTolerance = 1000)
+# saveRDS(regions_simp, here("data","regions_simp.rds"))
+regions_simp <- readRDS(here("data","regions_simp.rds"))
+regions_simp$region <- factor(regions_simp$region)
+
+# df showing seats which flipped to conservatives, for overlaying on map
+flip_df <- all_elections_polygons_simp %>% 
+  filter(con_flip == 1)
+```
+
+
+### Context 
+
+Presented below are the the seats in England and Wales viewed firstly in terms of the size of the rise (or fall) of the conservative vote in 2019 from 2017. The next map shows the seats which actually flipped from another party to the Conservatives. 
+Also shown, below these, are the ranking of the increase in Conservative votes across all the constituencies. 
+
+
+    
+
+```{r, fig.height=6, fig.width=10}
+all_elections_polygons_simp <- all_elections_polygons_simp %>% 
+  mutate(con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0)),
+         con_19gain = con_19 - con_17) %>% 
+  arrange(con_19gain) %>% 
+  mutate(con_gain_rank = seq(from = 571, to = 1, by = -1)) %>% 
+  arrange(pano) %>% 
+  mutate(labour19 = factor(ifelse(winner_19 == "Labour", 1, 0)), 
+         labour17 = factor(ifelse(winner_17 == "Labour", 1, 0)),
+         labour15 = factor(ifelse(winner_15 == "Labour", 1, 0)),
+         labour10 = factor(ifelse(winner_10 == "Labour", 1, 0)))
+  
+
+cgainvotes <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_19gain)) + 
+  scale_fill_gradient2(low="red",high="darkblue",mid="white",midpoint = 0) + 
+  labs(title = "Conservatives Gain/Loss Votes", fill="%")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
+
+cgainseat <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_flip)) + 
+  scale_fill_manual(values = c("white","darkblue")) + 
+  labs(title = "Conservatives Gain Seats")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
+
+cgainvotes + cgainseat
+
+ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_gain_rank)) + 
+  scale_fill_gradient2(low="darkblue",high="red",mid="white",midpoint = 286) + 
+  labs(title = "Conservatives Gain Ranked")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
+
+```
+
+ 
+ 
+These maps show the collapse of Labour's *'red wall'* in 2019 and where exactly these constituencies are located. A clear shrinkage is visible across Northern Wales and England.  
+
+```{r, fig.height=10, fig.width=10}
+l10 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour10)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "Red Wall", subtitle = "Labour Seats 2010")  + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l15 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour15)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "Red Wall", subtitle = "Labour Seats 2015") + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l17 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour17)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "Red Wall", subtitle = "Labour Seats 2017") + 
+  coord_sf(datum = NA) + 
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l19 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour19)) + 
+  scale_fill_manual(values = c("white","darkred")) + 
+  labs(title = "'Collapse of Red Wall'", subtitle = "Labour Seats 2019") + 
+  coord_sf(datum = NA) +  
+  theme_classic2() +
+  theme(legend.position="none", 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
+l10 + l15 + l17 + l19
+
+```
+
+
+### Description of Variables 
+
+I have restricted my analysis to England and Wales where this general increase in Conservative vote was observed. Scotland and in particular Northern Ireland have very different political dynamics at play. 
+
+
+### Response Variable: 
+$\LARGE\boxed{con\_change_1 =  \frac{100(con\_19 - con\_17)}{(100 - con\_17)}}$ 
+
+#### "percentage of those who didn't vote conservative last time who did this time"
+
+
+```{r}
+ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="blue", fill="darkblue") + 
+  labs(title = "Histogram Of Dependent Variable In 571 Constituencies") + 
+  theme_bw()
+```
+
+### Explanatory Variables 
+
+I have chosen the following explanatory variables, which provide a broad sweep of the composition of each constituency: 
+
+ 
+
+```{r, fig.height=6, fig.width=6}
+
+subset1 <- all_elections_polygons %>% 
+  dplyr::select(con_change1, 
+                low_qual, 
+                over65, 
+                student, 
+                deprived, 
+                log_density, 
+                leave_EU, 
+                house_owned, 
+                unemployed, 
+                born_elsewhere
+                ) %>% 
+  st_drop_geometry()
+
+```
+
+
+```{r, fig.height=8, fig.width=8}
+
+ggcorr(subset1,method = c("everything", "pearson")) + 
+  labs(title = "Correlation among con_change1 and 9 covariates")
+```
+
+These are the nine variables which I extracted from the census dataset which I felt could be meaningful in terms of voting patterns. 
+
+However, they not surprisingly display high levels of correlation. 
+
+I have decided to use just two in the following models. 
+
+'deprived' represents a lot of the same information as 'low_qual' and 'unemployed'. 
+
+'over65' represents a lot of the same information as 'student', 'log_density', 'house_owned' and 'born_elsewhere'. 
+
+Furthermore, 'deprived' and 'over 65' show a low level of mutual correlation.
+ 
+  
+  
+
+
+
+```{r, fig.height=6, fig.width=6}
+
+subset2 <- subset1 %>% 
+  dplyr::select(con_change1, 
+#                low_qual, 
+                over65, 
+#                student, 
+                deprived, 
+#                log_density, 
+#                leave_EU, 
+#                house_owned, 
+#                unemployed, 
+#                born_elsewhere
+                )
+
+```
+
+
+```{r}
+ggpairs(subset2) + 
+  labs(title = "Correlation among con_change1 and 2 covariates")
+# ggcorr(subset2, method = c("everything", "pearson"))
+
+```
+
+*** 
+
+#### Ordinary Linear Model: By Constituency 
+
+A one percent increase of 'over65's or 'deprived's in a constituency, controlling for the other, leads to a increase of approximately 0.7% in the percentage of non-Conservative voters who changed their vote to Conservatives. 
+
+
+```{r}
+model1 <- lm(con_change1 ~ ., data=subset2)
+summary(model1)
+
+```
+
+
+
+```{r,fig.height=6,fig.width=8}
+
+par(mfrow=c(2,2))
+plot(model1)
+
+```
+
+*** 
+
+
+### Linear Mixed Model - Random Intercept and Slope by county
+
+```{r}
+model2.2 <- lmer(con_change1 ~ 1 + over65 + deprived + (over65+deprived|county), 
+               data=all_elections_polygons)
+
+summary(model2.2)
+
+plot(model2.2)
+```
+
+*** 
+
+
+```{r, fig.height=6, fig.width=12}
+
+fix_efs <- fixef(model2.2) # fixed effects
+
+# combine fixed and random effects into dataframe
+effects <- ranef(model2.2)$county %>% #
+  cbind(counties_simp$geometry) %>% 
+  rename(rand_intercept = `(Intercept)`,
+         rand_slope_over65 = over65,
+         rand_slope_deprived = deprived) %>% 
+  mutate(fix_intercept = rep(fix_efs[1],52),
+         fix_slope_over65 = rep(fix_efs[2],52), 
+         fix_slope_deprived = rep(fix_efs[3],52),
+         slope_both_over65 = rand_slope_over65 + fix_slope_over65,
+         slope_both_deprived = rand_slope_deprived + fix_slope_deprived) %>% 
+  rownames_to_column("county") %>% 
+  as.data.frame() %>% 
+  st_as_sf()
+
+
+pp1 <- ggplot(effects) + geom_sf(aes(fill=slope_both_over65)) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Random + Fixed Effects: Slope")
+
+pp2 <- ggplot(effects) + geom_sf(aes(fill=slope_both_deprived)) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Random + Fixed Effects: Slope")
+
+pp3 <- ggplot(effects) + geom_sf(aes(fill=rand_slope_over65)) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Random Effects: Slope")
+
+pp4 <- ggplot(effects) + geom_sf(aes(fill=rand_slope_deprived)) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Random Effects: Slope")
+
+```
+
+*** 
+
+Coefficient estimates for random slopes per county from linear mixed model. 
+
+
+```{r, fig.height=6, fig.width=12}
+
+# ggarrange(pp1,pp2, 
+#           ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+ggarrange(pp3,pp4, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+#### Values on caterpillar plot
+
+```{r, fig.height=6, fig.width=12}
+
+df <- as.data.frame(ranef(model2.2, condVar=TRUE))
+
+ggplot(data = df[1:52,], aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour="red") +
+  scale_colour_manual(values = c("blue", "red")) +
+  theme_classic() + 
+  labs(title = "Linear Mixed Effects Model\nRandom Intercept") +
+  ylab("Value") + 
+  xlab("County") 
+
+df1 <- df[53:104,] %>% 
+  arrange(condval) %>% 
+  mutate(grp = factor(grp, levels=grp))
+ggplot(data = df1, aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour="red") +
+  scale_colour_manual(values = c("blue", "red")) +
+  theme_classic() + 
+  labs(title = "Linear Mixed Effects Model\nRandom Slope: Over65") +
+  ylab("Value") + 
+  xlab("County") 
+
+df2 <- df[105:156,] %>% 
+  arrange(condval) %>% 
+  mutate(grp = factor(grp, levels=grp))
+ggplot(data = df2, aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour="red") +
+  scale_colour_manual(values = c("blue", "red")) +
+  theme_classic() + 
+  labs(title = "Linear Mixed Effects Model\nRandom Slope: Deprived") +
+  ylab("Value") + 
+  xlab("County") 
+
+
+df <- df %>% 
+  mutate(signifigance = ifelse(condval-condsd <0 & condval+condsd <0, "negative", 
+                      ifelse(condval-condsd >0 & condval+condsd >0, "positive", "not significant"))
+         ) %>% 
+  cbind(rep(counties_simp$geometry,3)) %>% 
+  st_as_sf()
+
+ggplot(df[1:52,]) + 
+  geom_sf(aes(fill=signifigance)) + 
+  labs(title = "Random Intercept Significance", 
+       subtitle = "Red Lines Denote New Conservative Wins") + 
+  scale_fill_brewer(type="div") + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
+
+ggplot(df[53:104,]) + 
+  geom_sf(aes(fill=signifigance)) + 
+  labs(title = "Random Slope (Over 65) Significance", 
+       subtitle = "Red Lines Denote New Conservative Wins") +
+  scale_fill_brewer(type="div") + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
+
+ggplot(df[105:156,]) + 
+  geom_sf(aes(fill=signifigance)) + 
+  labs(title = "Random Slope (Deprived) Significance", 
+       subtitle = "Red Lines Denote New Conservative Wins") +
+  scale_fill_brewer(type="div") + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
+
+
+```
+
+*** 
+### Problems with LMM in this context 
+
+1. Constituencies, however, are not independent observations. 
+
+2. MAUP.
+
+*** 
+
+#### Different approach 
+
+To account for non-independence (spatial autocorrelation) and MAUP (constituencies are the smallest recorded observation level), I will use a Generalised Additive Model (GAM). This will feature as a component a Conditional Autoregressive (CAR) model, which is an example of a Markov Random Field (MRF). It is also a multi-level model. 
+
+**First model: **
+
+Conservative Change = $\alpha + \beta_{1}x_{1} + \beta_{2}x_{2} + \gamma_{0j} + \gamma_{1j}x_{1}$   
+
+- with $\gamma_{0j} \sim CAR(\tau_{0}^{2})$, and $\gamma_{1j} \sim CAR(\tau_{1}^{2})$ 
+
+$\beta_{1}$ - over65 
+
+$\beta_{2}$ - deprived 
+
+
+$\gamma_{1j}$ - effect from 'over65' of being in geographical area $j$ 
+ 
+
+
+**Second model: **
+
+Conservative Change = $\alpha + \beta_{1}x_{1} + \beta_{2}x_{2} + \gamma_{0j} + \gamma_{2j}x_{2}$   
+
+- with $\gamma_{0j} \sim CAR(\tau_{0}^{2})$, and $\gamma_{2j} \sim CAR(\tau_{2}^{2})$ 
+
+$\beta_{1} - over65$ 
+
+$\beta_{2} - deprived$ 
+
+$\gamma_{2j}$ - effect from 'deprived' of being in geographical area $j$ 
+
+*** 
+
+
+#### GAM with CAR: county level 
+##### Over 65
+
+```{r}
+# make adjacency list for counties
+nlist <- counties %>% st_touches()
+names(nlist) <- counties$county
+
+# Isle of Wight[26] is island county. Make it adjacent to West Sussex[51] and Hampshire[22]
+# nlist[51]$`West Sussex` <- c(16,22,26,46)
+# nlist[22]$Hampshire <- c(3,13,26,46,51,53)
+# nlist[26]$`Isle of Wight` <- c(22,51)
+
+```
+
+
+```{r}
+
+model3.1 <- gam(con_change1 ~ over65 + deprived + 
+                 s(county,bs='mrf',xt=list(nb=nlist)) +
+                 s(county,bs='mrf',xt=list(nb=nlist), 
+                   by=over65,k=2),
+               data=all_elections_polygons, family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model3.1)
+
+county_extract1 <- tibble(over65=rep(1,52), 
+                          deprived=rep(0,52),
+                          county=levels(counties$county),
+                         `county:over65`=levels(counties$county)) 
+
+# df for holding results with simplified county boundaries for plotting
+counties_simp1 <- counties_simp %>% 
+  mutate(agamma_i = predict(model3.1, newdata = county_extract1))
+
+a3.1 <- ggplot(counties_simp1,aes(fill=agamma_i)) + 
+  geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(name=expression(alpha+gamma[i]),direction=1)
+
+
+
+
+counties_simp1 <- counties_simp1 %>% 
+  mutate(gamma_i = predict(model3.1,  newdata = county_extract1, type='terms')[,4], 
+         rand_slope_over65 = (gamma_i / wmeans$over65), 
+         fix_slope_over65 = rep(model3.1$coefficients[2]), 
+         total_slope_over65 = rand_slope_over65 + fix_slope_over65)
+
+
+b3.1 <- ggplot(counties_simp1,aes(fill=gamma_i)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(type='div',
+                       name=expression(gamma[over65]))
+
+c3.1 <- ggplot(counties_simp1,aes(fill=rand_slope_over65)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  labs(title = "Random Slope")
+
+d3.1 <- ggplot(counties_simp1,aes(fill=total_slope_over65)) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  labs(title = "Fixed + Random Slope")
+
+```
+
+
+#### GAM with CAR county level
+##### Deprived
+
+```{r}
+
+model3.2 <- gam(con_change1 ~ over65 + deprived + 
+                 s(county,bs='mrf',xt=list(nb=nlist)) +
+                 s(county,bs='mrf',xt=list(nb=nlist), 
+                   by=deprived,k=2),
+               data=all_elections_polygons, family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model3.2)
+
+county_extract2 <- tibble(over65=rep(1,52), 
+                          deprived=rep(1,52),
+                          county=levels(counties$county),
+                         `county:deprived`=levels(counties$county)) 
+
+counties_simp2 <- counties_simp %>% 
+  mutate(agamma_i = predict(model3.2, newdata = county_extract2))
+
+a3.2 <- ggplot(counties_simp2,aes(fill=agamma_i)) + 
+  geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(name=expression(alpha+gamma[0]),direction=1)
+
+
+counties_simp2 <- counties_simp2 %>% 
+  mutate(gamma_i = predict(model3.2, newdata = county_extract2, type='terms')[,4], 
+         rand_slope_deprived = (gamma_i / wmeans$deprived), 
+         fix_slope_deprived = predict(model3.2, newdata = county_extract2,type='terms')[,2], 
+         total_slope_deprived = rand_slope_deprived + fix_slope_deprived)
+
+b3.2 <- ggplot(counties_simp2,aes(fill=gamma_i)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(type='div',
+                       name=expression(gamma[deprived]))
+
+c3.2 <- ggplot(counties_simp2,aes(fill=rand_slope_deprived)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "Random Slope")
+
+
+d3.2 <- ggplot(counties_simp2,aes(fill=total_slope_deprived)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "Fixed + Random Slope")
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+# ggarrange(d3.1,d3.2, 
+#           ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+ggarrange(c3.1,c3.2, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+*** 
+
+#### GAM with CAR region level
+##### Over 65
+
+```{r}
+
+# fix and set up contiguity situation
+all_elections_polygons$region <- factor(all_elections_polygons$region)
+
+# contiguity list
+nlist3 <- regions %>% st_touches()
+names(nlist3) <- regions$region
+
+
+# first, GAM CAR for over65 variable
+
+model5.1 <- gam(con_change1 ~ over65 + deprived + 
+                  s(region,bs='mrf',xt=list(nb=nlist3), k=3) + 
+                  s(region,bs='mrf',xt=list(nb=nlist3), 
+                           by=over65,k=3), 
+                data=all_elections_polygons,  family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model5.1)
+
+# df for holding results with simplified constituency boundaries for plotting
+reg_extract <- tibble(over65=rep(1,10), 
+                      deprived=rep(1,10), 
+                      region=levels(regions$region), 
+                      `region:over65`=levels(regions$region)) 
+
+# all_elections_polygons_reg_simp <- all_elections_polygons %>% 
+#   dplyr::select(-geometry) %>% 
+#   st_join(regions_simp)
+
+regions_simp <- regions_simp %>% 
+  mutate(gamma_over65 = predict(model5.1, newdata = reg_extract, type='terms')[,4],
+#         gamma_deprived = predict(model5.1, newdata = reg_extract, type='terms')[,5],
+         rand_slope_over65 = gamma_over65 / wmeans_regions$over65, 
+#         rand_slope_deprived = gamma_deprived / wmeans_regions$deprived,
+         total_slope_over65 = rand_slope_over65 + model5.1$coefficients[2],
+#         total_slope_deprived = rand_slope_deprived + model5.1$coefficients[3]
+)
+```
+
+
+#### GAM with CAR region level
+##### Deprived
+
+```{r}
+
+model5.2 <- gam(con_change1 ~ over65 + deprived + 
+                  s(region,bs='mrf',xt=list(nb=nlist3), k=3) + 
+                  s(region,bs='mrf',xt=list(nb=nlist3), 
+                           by=deprived,k=2), 
+                data=all_elections_polygons,  family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model5.2)
+
+# df for holding results with simplified constituency boundaries for plotting
+reg_extract2 <- tibble(over65=rep(1,10), 
+                      deprived=rep(1,10), 
+                      region=levels(regions$region), 
+                      `region:over65`=levels(regions$region))  
+
+regions_simp <- regions_simp %>% 
+  mutate(gamma_deprived = predict(model5.2, newdata = reg_extract2, type='terms')[,4],
+         rand_slope_deprived = gamma_deprived / wmeans_regions$deprived,
+         total_slope_deprived = rand_slope_deprived + model5.2$coefficients[3]
+)
+
+rr1 <- ggplot(regions_simp,aes(fill=total_slope_over65)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  labs(title = "Fixed + Random Slopes")
+
+rr2 <- ggplot(regions_simp,aes(fill=total_slope_deprived)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "Fixed + Random Slopes")
+
+rr3 <- ggplot(regions_simp,aes(fill=rand_slope_over65)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  labs(title = "Random Slopes")
+
+rr4 <- ggplot(regions_simp,aes(fill=rand_slope_deprived)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "Random Slopes")
+```
+
+```{r, fig.height=6, fig.width=12}
+
+# ggarrange(rr1,rr2, 
+#           ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+ggarrange(rr3,rr4, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+*** 
+
+### Reasons for NaN's in county and region models? 
+
+1. Isle of Wight is a one constituency county? 
+2. Many counties have only 2, 3, 4 constituencies? 
+3. 
+
+### GAM with CAR constituency level
+
+```{r}
+
+# dfs WITH Isle of Wight
+all_elections2 <- all_elections %>% 
+  mutate(con_change1 = 100*(con_19 - con_17) / (100 - con_17)) %>% 
+  filter(!is.na(con_change1)) %>% 
+  filter(country != "Scotland") %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         log_density = log(population_density),
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density, 
+         con_flip = ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0), 
+         county = factor(county), 
+#         over65 = scale(over65), 
+#         deprived = scale(deprived)
+         )
+
+all_elections_polygons2 <- left_join(all_elections2 %>% st_drop_geometry(), 
+                                    constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf()
+
+all_elections_polygons_simp2 <- left_join(all_elections2 %>% st_drop_geometry(), 
+                                    constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 1000)
+
+counties_simp2 <-readRDS(here("data","counties_simp.rds")) %>%
+  mutate(county = factor(county))
+
+# df showing seats which flipped to conservatives, for overlaying on map
+flip_df2 <- all_elections_polygons_simp2 %>% 
+  filter(con_flip == 1)
+```
+
+```{r}
+
+
+# fix and set up contiguity situation
+all_elections_polygons2$constituency_name <- factor(all_elections_polygons2$constituency_name)
+
+# contiguity list
+nlist2 <- all_elections_polygons2 %>% st_touches()
+names(nlist2) <- all_elections_polygons2$constituency_name
+
+# Two island constituencies: make them have contiguity
+# 570: Ynys Mon - closest is Arfon: 8
+# 253: Isle Of Wight - closest are Portsmouth South: 385, Gosport: 203, 
+# Fareham: 189, New Forest East: 330, New Forest West:331
+# set them as contiguous to the nearest constituencies, 
+# and those constituencies as contiguous to them
+nlist2[385]$`Portsmouth South` <- c(253,384)
+nlist2[203]$Gosport <- c(189,253)
+nlist2[189]$Fareham <- c(203,253,304,384)
+nlist2[330]$`New Forest East` <- c(253,331,404,415)
+nlist2[331]$`New Forest West` <- c(123,253,330,340,415)
+nlist2[8]$Arfon <- c(2,163,570)
+nlist2[570]$`Ynys Mon` <- 8
+nlist2[253]$`Isle Of Wight` <- c(189,203,330,331,385)
+
+```
+
+
+
+```{r}
+
+# first, GAM CAR for over65 variable
+
+model4.1 <- gam(con_change1 ~ over65 + deprived + 
+                  s(constituency_name,bs='mrf',xt=list(nb=nlist2), k=20) + 
+                  s(constituency_name,bs='mrf',xt=list(nb=nlist2), 
+                           by=over65,k=3), 
+                data=all_elections_polygons2,  family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model4.1)
+
+# df for holding results with simplified constituency boundaries for plotting
+const_extract <- tibble(over65=rep(1,572), 
+                        deprived=rep(1,572),
+                        constituency_name=levels(all_elections_polygons2$constituency_name), 
+                        `constituency_name:over65`=all_elections_polygons2$constituency_name) 
+
+all_elections_polygons_simp2 <- all_elections_polygons_simp2 %>% 
+  mutate(gamma_over65 = predict(model4.1, newdata = const_extract, type='terms')[,4],
+#         gamma_deprived = predict(model4.1, newdata = const_extract, type='terms')[,5],
+         rand_slope_over65 = gamma_over65 / all_elections_polygons2$over65, 
+#         rand_slope_deprived = gamma_deprived / all_elections_polygons2$deprived,
+         total_slope_over65 = rand_slope_over65 + model4.1$coefficients[2],
+#         total_slope_deprived = rand_slope_deprived + model4.1$coefficients[3]
+)
+
+```
+
+```{r}
+
+# second, GAM CAR for deprived variable
+
+model4.2 <- gam(con_change1 ~ over65 + deprived + 
+                  s(constituency_name,bs='mrf',xt=list(nb=nlist2), k=15) + 
+                  s(constituency_name,bs='mrf',xt=list(nb=nlist2), 
+                           by=deprived,k=2), 
+                data=all_elections_polygons2,  family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model4.2)
+
+# df for holding results with simplified constituency boundaries for plotting
+const_extract2 <- tibble(over65=rep(1,572), 
+                        deprived=rep(1,572),
+                        constituency_name=levels(all_elections_polygons2$constituency_name), 
+                        `constituency_name:deprived`=all_elections_polygons2$constituency_name) 
+
+all_elections_polygons_simp2 <- all_elections_polygons_simp2 %>% 
+  mutate(gamma_deprived = predict(model4.2, newdata = const_extract, type='terms')[,4],
+         rand_slope_deprived = gamma_deprived / all_elections_polygons2$deprived,
+         total_slope_deprived = rand_slope_deprived + model4.2$coefficients[3]
+)
+
+```
+
+
+```{r}
+
+s1 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=total_slope_over65),lwd=.2) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Over 65") + 
+#  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Fixed + Random Slope") + 
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+
+s2 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=total_slope_deprived),lwd=.2) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Deprived") + 
+#  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Fixed + Random Slope") + 
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+
+s3 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=rand_slope_over65),lwd=.2) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Over 65") + 
+#  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Random Slope") + 
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+
+s4 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=rand_slope_deprived),lwd=.2) +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Deprived") + 
+#  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
+  labs(title = "Random Slope") + 
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+
+
+```
+
+
+
+
+Showing the change in the constituency slope as a result of being in each particular constituency. 
+
+Red lines show seat which flipped from non-Conservative to Conservative. 
+
+
+```{r, fig.width=12, fig.height=6}
+
+# ggarrange(s1,s2, 
+#           ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+ggarrange(s3,s4, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+
+
+
+
