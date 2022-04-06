@@ -236,10 +236,17 @@ $\LARGE\boxed{con\_change_1 =  \frac{100(con\_19 - con\_17)}{(100 - con\_17)}}$
 #### "percentage of those who didn't vote conservative last time who did this time"
 
 
-```{r}
-ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="blue", fill="darkblue") + 
+```{r, fig.height=6, fig.width=12}
+a1 <- ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="blue", fill="darkblue") + 
   labs(title = "Histogram Of Dependent Variable In 571 Constituencies") + 
   theme_bw()
+
+a2 <- ggplot(all_elections_polygons_simp) + 
+  geom_sf(aes(fill=con_change1), lwd=0.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0) + 
+  labs(title = "Dependent Variable Map")
+
+a1 + a2
 ```
 
 ### Explanatory Variables 
@@ -267,7 +274,7 @@ subset1 <- all_elections_polygons %>%
 ```
 
 
-```{r, fig.height=8, fig.width=8}
+```{r, fig.height=6, fig.width=6}
 
 ggcorr(subset1,method = c("everything", "pearson")) + 
   labs(title = "Correlation among con_change1 and 9 covariates")
@@ -929,7 +936,7 @@ s4 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=rand_slope_d
 
 Showing the change in the constituency slope as a result of being in each particular constituency. 
 
-Red lines show seat which flipped from non-Conservative to Conservative. 
+Red lines show seats which flipped from non-Conservative to Conservative. 
 
 
 ```{r, fig.width=12, fig.height=6}
