@@ -40,6 +40,7 @@ library(kableExtra)
 library(mgcv)
 library(colorspace)
 library(gclus)
+library(corrplot)
 library(lme4)
 library(ggplot2); theme_set(theme_dark())
 
@@ -237,12 +238,12 @@ $\LARGE\boxed{con\_change_1 =  \frac{100(con\_19 - con\_17)}{(100 - con\_17)}}$
 
 
 ```{r, fig.height=6, fig.width=12}
-a1 <- ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="blue", fill="darkblue") + 
+a1 <- ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="black", fill="darkblue") + 
   labs(title = "Histogram Of Dependent Variable In 571 Constituencies") + 
   theme_bw()
 
 a2 <- ggplot(all_elections_polygons_simp) + 
-  geom_sf(aes(fill=con_change1), lwd=0.25, colour="black") +
+  geom_sf(aes(fill=con_change1), lwd=0.15, colour="black") +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0) + 
   labs(title = "Dependent Variable Map")
 
@@ -255,8 +256,9 @@ I have chosen the following explanatory variables, which provide a broad sweep o
 
  
 
-```{r, fig.height=6, fig.width=6}
+```{r, fig.height=6, fig.width=12}
 
+par(mfrow=c(1,2))
 subset1 <- all_elections_polygons %>% 
   dplyr::select(con_change1, 
                 low_qual, 
@@ -271,14 +273,27 @@ subset1 <- all_elections_polygons %>%
                 ) %>% 
   st_drop_geometry()
 
+subset1 %>% 
+  cor() %>% 
+  corrplot.mixed(order = 'AOE', tl.col = 'black', tl.pos = 'lt')
+
+subset2 <- subset1 %>% 
+  dplyr::select(con_change1, 
+#                low_qual, 
+                over65, 
+#                student, 
+                deprived, 
+#                log_density, 
+#                leave_EU, 
+#                house_owned, 
+#                unemployed, 
+#                born_elsewhere
+                )
+subset2 %>% 
+  cor() %>% 
+  corrplot.mixed(order = 'AOE', tl.col = 'black')
 ```
 
-
-```{r, fig.height=6, fig.width=6}
-
-ggcorr(subset1,method = c("everything", "pearson")) + 
-  labs(title = "Correlation among con_change1 and 9 covariates")
-```
 
 These are the nine variables which I extracted from the census dataset which I felt could be meaningful in terms of voting patterns. 
 
@@ -294,33 +309,6 @@ Furthermore, 'deprived' and 'over 65' show a low level of mutual correlation.
  
   
   
-
-
-
-```{r, fig.height=6, fig.width=6}
-
-subset2 <- subset1 %>% 
-  dplyr::select(con_change1, 
-#                low_qual, 
-                over65, 
-#                student, 
-                deprived, 
-#                log_density, 
-#                leave_EU, 
-#                house_owned, 
-#                unemployed, 
-#                born_elsewhere
-                )
-
-```
-
-
-```{r}
-ggpairs(subset2) + 
-  labs(title = "Correlation among con_change1 and 2 covariates")
-# ggcorr(subset2, method = c("everything", "pearson"))
-
-```
 
 *** 
 
@@ -426,16 +414,22 @@ ggarrange(pp3,pp4,
 
 ```{r, fig.height=6, fig.width=12}
 
-df <- as.data.frame(ranef(model2.2, condVar=TRUE))
+flip_county <- all_elections_polygons %>% 
+  filter(con_flip ==1)
+flip_county <- unique(flip_county$county)
+
+df <- as.data.frame(ranef(model2.2, condVar=TRUE)) %>% 
+  mutate(flip = factor(ifelse(grp %in% flip_county, "Yes", "No")))
 
 ggplot(data = df[1:52,], aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+  geom_errorbar(aes(colour=flip), position = position_dodge(width = 0.2), width = 0.1) +
   geom_point(position = position_dodge(width = 0.2)) +
-  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
   coord_flip() + 
   geom_hline(yintercept = 0, colour="red") +
-  scale_colour_manual(values = c("blue", "red")) +
+  scale_colour_manual(values = c("grey", "black")) +
   theme_classic() + 
-  labs(title = "Linear Mixed Effects Model\nRandom Intercept") +
+  labs(title = "Linear Mixed Effects Model\nRandom Intercept", 
+       colour = "County contains\nnew Conservative\nconstituencies") +
   ylab("Value") + 
   xlab("County") 
 
@@ -443,13 +437,14 @@ df1 <- df[53:104,] %>%
   arrange(condval) %>% 
   mutate(grp = factor(grp, levels=grp))
 ggplot(data = df1, aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+  geom_errorbar(aes(colour=flip), position = position_dodge(width = 0.2), width = 0.1) +
   geom_point(position = position_dodge(width = 0.2)) +
-  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
   coord_flip() + 
   geom_hline(yintercept = 0, colour="red") +
-  scale_colour_manual(values = c("blue", "red")) +
+  scale_colour_manual(values = c("grey", "black")) +
   theme_classic() + 
-  labs(title = "Linear Mixed Effects Model\nRandom Slope: Over65") +
+  labs(title = "Linear Mixed Effects Model\nRandom Intercept: over65", 
+       colour = "County contains\nnew Conservative\nconstituencies") +
   ylab("Value") + 
   xlab("County") 
 
@@ -457,15 +452,16 @@ df2 <- df[105:156,] %>%
   arrange(condval) %>% 
   mutate(grp = factor(grp, levels=grp))
 ggplot(data = df2, aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+   geom_errorbar(aes(colour=flip), position = position_dodge(width = 0.2), width = 0.1) +
   geom_point(position = position_dodge(width = 0.2)) +
-  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
   coord_flip() + 
   geom_hline(yintercept = 0, colour="red") +
-  scale_colour_manual(values = c("blue", "red")) +
+  scale_colour_manual(values = c("grey", "black")) +
   theme_classic() + 
-  labs(title = "Linear Mixed Effects Model\nRandom Slope: Deprived") +
+  labs(title = "Linear Mixed Effects Model\nRandom Intercept: deprived", 
+       colour = "County contains\nnew Conservative\nconstituencies") +
   ylab("Value") + 
-  xlab("County") 
+  xlab("County")  
 
 
 df <- df %>% 
@@ -475,28 +471,39 @@ df <- df %>%
   cbind(rep(counties_simp$geometry,3)) %>% 
   st_as_sf()
 
-ggplot(df[1:52,]) + 
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+b1 <- ggplot(df[1:52,]) + 
   geom_sf(aes(fill=signifigance)) + 
   labs(title = "Random Intercept Significance", 
-       subtitle = "Red Lines Denote New Conservative Wins") + 
+       subtitle = "Red Lines Denote New Conservative Wins", 
+       fill = "Neg/Pos\nAddition\nto Slope") + 
   scale_fill_brewer(type="div") + 
   geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
 
-ggplot(df[53:104,]) + 
+b2 <- ggplot(df[53:104,]) + 
   geom_sf(aes(fill=signifigance)) + 
   labs(title = "Random Slope (Over 65) Significance", 
-       subtitle = "Red Lines Denote New Conservative Wins") +
+       subtitle = "Red Lines Denote New Conservative Wins", 
+       fill = "Neg/Pos\nAddition\nto Slope") + 
   scale_fill_brewer(type="div") + 
   geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
 
-ggplot(df[105:156,]) + 
+b3 <- ggplot(df[105:156,]) + 
   geom_sf(aes(fill=signifigance)) + 
   labs(title = "Random Slope (Deprived) Significance", 
-       subtitle = "Red Lines Denote New Conservative Wins") +
+       subtitle = "Red Lines Denote New Conservative Wins", 
+       fill = "Neg/Pos\nAddition\nto Slope") + 
   scale_fill_brewer(type="div") + 
   geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
 
+b1
 
+ggarrange(b2, b3,  
+          ncol=2, nrow=1, common.legend = TRUE, legend="right")
 ```
 
 *** 
