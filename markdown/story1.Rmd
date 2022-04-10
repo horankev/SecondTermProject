@@ -137,7 +137,7 @@ Also shown, below these, are the ranking of the increase in Conservative votes a
 
     
 
-```{r, fig.height=6, fig.width=10}
+```{r, fig.height=6, fig.width=12}
 all_elections_polygons_simp <- all_elections_polygons_simp %>% 
   mutate(con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0)),
          con_19gain = con_19 - con_17) %>% 
@@ -149,61 +149,65 @@ all_elections_polygons_simp <- all_elections_polygons_simp %>%
          labour15 = factor(ifelse(winner_15 == "Labour", 1, 0)),
          labour10 = factor(ifelse(winner_10 == "Labour", 1, 0)))
   
-cgainvotes <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_19gain)) + 
-  scale_fill_gradient2(low="red",high="darkblue",mid="white",midpoint = 0) + 
-  labs(title = "Conservatives Gain/Loss Votes", fill="%")  + 
+cgainvotes <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_19gain),lwd=0.1) + 
+  scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE) + 
+  labs(title = "Conservatives Vote Change 2019/17", fill="%")  + 
   coord_sf(datum = NA) + 
   theme_classic2() +
-  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
-cgainseat <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_flip)) + 
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 1))
+cgainseat <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_flip),lwd=0.1) + 
   scale_fill_manual(values = c("white","darkblue")) + 
   labs(title = "Conservatives Gain Seats")  + 
   coord_sf(datum = NA) + 
   theme_classic2() +
-  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
-cgainvotes + cgainseat
-ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_gain_rank)) + 
-  scale_fill_gradient2(low="darkblue",high="red",mid="white",midpoint = 286) + 
-  labs(title = "Conservatives Gain Ranked")  + 
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 1))
+#cgainvotes + cgainseat
+xxx <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_gain_rank),lwd=0.1) + 
+  scale_fill_continuous_sequential(palette = "Lajolla", rev=TRUE) + 
+  labs(title = "Conservatives Gain Ranked: 1 - 571")  + 
   coord_sf(datum = NA) + 
   theme_classic2() +
-  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 3))
+  theme(panel.border = element_rect(colour = "darkblue", fill=NA, size = 1))
+
+cgainvotes + cgainseat + xxx
 ```
 
  
  
 These maps show the collapse of Labour's *'red wall'* in 2019 and where exactly these constituencies are located. A clear shrinkage is visible across Northern Wales and England.  
 
-```{r, fig.height=10, fig.width=10}
-l10 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour10)) + 
+```{r, fig.height=6, fig.width=12}
+l10 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour10),lwd=0.1) + 
   scale_fill_manual(values = c("white","darkred")) + 
   labs(title = "Red Wall", subtitle = "Labour Seats 2010")  + 
   coord_sf(datum = NA) + 
   theme_classic2() +
   theme(legend.position="none", 
-        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
-l15 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour15)) + 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 1))
+l15 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour15),lwd=0.1) + 
   scale_fill_manual(values = c("white","darkred")) + 
   labs(title = "Red Wall", subtitle = "Labour Seats 2015") + 
   coord_sf(datum = NA) + 
   theme_classic2() +
   theme(legend.position="none", 
-        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
-l17 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour17)) + 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 1))
+l17 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour17),lwd=0.1) + 
   scale_fill_manual(values = c("white","darkred")) + 
   labs(title = "Red Wall", subtitle = "Labour Seats 2017") + 
   coord_sf(datum = NA) + 
   theme_classic2() +
   theme(legend.position="none", 
-        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
-l19 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour19)) + 
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 1))
+l19 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour19),lwd=0.1) + 
   scale_fill_manual(values = c("white","darkred")) + 
   labs(title = "'Collapse of Red Wall'", subtitle = "Labour Seats 2019") + 
   coord_sf(datum = NA) +  
   theme_classic2() +
   theme(legend.position="none", 
-        panel.border = element_rect(colour = "darkred", fill=NA, size = 3))
-l10 + l15 + l17 + l19
+        panel.border = element_rect(colour = "darkred", fill=NA, size = 1))
+
+ggarrange(l10, l15, l17, l19,  
+          ncol=4, nrow=1, common.legend = TRUE, legend="right")
 ```
 
 
@@ -213,20 +217,44 @@ I have restricted my analysis to England and Wales where this general increase i
 
 
 ### Response Variable: 
-$\LARGE\boxed{con\_change_1 =  \frac{100(con\_19 - con\_17)}{(100 - con\_17)}}$ 
+$\begin{aligned}\LARGE{con\_change_1 =  \frac{100(con\_19 - con\_17)}{(100 - con\_17)}}\end{aligned}$ 
 
+\begin{center}
 #### "percentage of those who didn't vote conservative last time who did this time"
+\end{center}
+
+```{r, fig.height=4, fig.width=4}
+a1 <- ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="darkred", fill="darkblue") + 
+  labs(title = "Histogram Of Dependent Variable In 571 Constituencies") + 
+  theme_bw()
+
+a1
+
+```
 
 
 ```{r, fig.height=6, fig.width=12}
-a1 <- ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="black", fill="darkblue") + 
-  labs(title = "Histogram Of Dependent Variable In 571 Constituencies") + 
-  theme_bw()
+
+noflip_df <- all_elections_polygons_simp %>% 
+  filter(con_flip == 0)
+
 a2 <- ggplot(all_elections_polygons_simp) + 
   geom_sf(aes(fill=con_change1), lwd=0.15, colour="black") +
-  scale_fill_continuous_diverging(palette = 'Vik', mid = 0) + 
-  labs(title = "Dependent Variable Map")
-a1 + a2
+  scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE) + 
+  labs(title = "Dependent Variable Map", 
+       subtitle = "Percentage Change Per Constituency")
+
+a3 <- ggplot(all_elections_polygons_simp) + 
+  geom_sf(aes(fill=con_change1), lwd=0.15, colour="black") + 
+  geom_sf(data=noflip_df, alpha=0.9,lwd=.6, colour="white") +
+  scale_fill_continuous_diverging(palette = 'Blue-Red3', mid = 0, rev=TRUE) + 
+  geom_sf(data=flip_df, alpha=0,lwd=.6, colour="darkred") +   
+  labs(title = "Dependent Variable Map", 
+       subtitle = "Red Lines Denote New Conservative Wins")
+
+ggarrange(a2, a3,  
+          ncol=2, nrow=1, common.legend = TRUE, legend="right")
+
 ```
 
 ### Explanatory Variables 
@@ -305,12 +333,68 @@ par(mfrow=c(2,2))
 plot(model1)
 ```
 
+#### Presence Of Spatial Autocorrelation
+
+```{r, fig.height=8, fig.width=8}
+
+# LISA clusters for coefficients of change variables
+
+
+all_elections_polygons_simp_table <- as.data.frame(all_elections_polygons_simp) %>% 
+  st_as_sf()
+
+neighbours1 <- poly2nb(all_elections_polygons_simp_table, queen=T)
+weights1 <- nb2listw(neighbours1, style="W", zero.policy = T)
+
+all_elections_polygons_simp_table <- as.data.frame(all_elections_polygons_simp)
+#######
+
+locali <- localmoran(all_elections_polygons_simp_table[,298], weights1, zero.policy = TRUE)
+
+######
+
+# Plot LISA clusters
+
+quadrant <- vector(mode="numeric",length=nrow(locali))
+
+# centers the variable of interest around its mean
+m.lowqual.change <- all_elections_polygons_simp_table[,298] - mean(all_elections_polygons_simp_table[,298])     
+
+# centers the local Moran's around the mean
+m.local <- locali[,1] - mean(locali[,1])    
+
+# significance threshold
+signif <- 0.1 
+
+# builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
+# andplaces non-significant Moran in the category 0.
+quadrant[m.lowqual.change >0 & m.local>0] <- 4  
+quadrant[m.lowqual.change <0 & m.local<0] <- 1      
+quadrant[m.lowqual.change <0 & m.local>0] <- 2
+quadrant[m.lowqual.change >0 & m.local<0] <- 3
+quadrant[locali[,5]>signif] <- 0   
+
+# plot in r
+brks <- c(0,1,2,3,4)
+colors <- c("white","blue",rgb(0,0,1,alpha=0.4),rgb(1,0,0,alpha=0.4),"red")
+plot(all_elections_polygons_simp$geometry, border="gray", col=colors[findInterval(quadrant,brks,all.inside=FALSE)])
+box()
+legend("bottomleft", legend = c("insignificant","low-low","low-high","high-low","high-high"),
+       fill=colors, bty="n")
+title(main = paste("LISA Clusters: ", names(all_elections_polygons_simp_table)[298]))
+
+
+```
+
+
+
+
 *** 
 
 
 ### Linear Mixed Model - Random Intercept and Slope by county
 
-```{r}
+```{r, fig.width=4, fig.height=4}
 model2.2 <- lmer(con_change1 ~ 1 + over65 + deprived + (over65+deprived|county), 
                data=all_elections_polygons)
 summary(model2.2)
@@ -337,13 +421,11 @@ effects <- ranef(model2.2)$county %>% #
   as.data.frame() %>% 
   st_as_sf()
 pp1 <- ggplot(effects) + geom_sf(aes(fill=slope_both_over65)) +
-  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
-                       name= "Over 65") + 
+  scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE, name="Over 65") + 
   geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Random + Fixed Effects: Slope")
 pp2 <- ggplot(effects) + geom_sf(aes(fill=slope_both_deprived)) +
-  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
-                       name= "Deprived") + 
+  scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE, name="Deprived") + 
   geom_sf(data=counties_simp, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Random + Fixed Effects: Slope")
 pp3 <- ggplot(effects) + geom_sf(aes(fill=rand_slope_over65)) +
@@ -362,93 +444,110 @@ pp4 <- ggplot(effects) + geom_sf(aes(fill=rand_slope_deprived)) +
 
 Coefficient estimates for random slopes per county from linear mixed model. 
 
-
-```{r, fig.height=6, fig.width=12}
-# ggarrange(pp1,pp2, 
-#           ncol=2, nrow=1, common.legend = FALSE, legend="right")
-ggarrange(pp3,pp4, 
-          ncol=2, nrow=1, common.legend = FALSE, legend="right")
-```
-
 #### Values on caterpillar plot
 
 ```{r, fig.height=6, fig.width=12}
 flip_county <- all_elections_polygons %>% 
   filter(con_flip ==1)
 flip_county <- unique(flip_county$county)
+
 df <- as.data.frame(ranef(model2.2, condVar=TRUE)) %>% 
-  mutate(flip = factor(ifelse(grp %in% flip_county, "Yes", "No")))
-ggplot(data = df[1:52,], aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+  mutate(flip = factor(ifelse(grp %in% flip_county, "Yes", "No")), 
+         se = condsd/sqrt(length(df)/3), # the df is long, with three variables
+         CI = 1.65*se)
+
+ggplot(data = df[1:52,], aes(x = grp, y = condval, ymin = condval-CI, ymax = condval+CI)) +
   geom_errorbar(aes(colour=flip), position = position_dodge(width = 0.2), width = 0.1) +
   geom_point(position = position_dodge(width = 0.2)) +
   coord_flip() + 
   geom_hline(yintercept = 0, colour="red") +
   scale_colour_manual(values = c("grey", "black")) +
   theme_classic() + 
-  labs(title = "Linear Mixed Effects Model\nRandom Intercept", 
+  labs(title = "Linear Mixed Effects Model: 90% Confidence Interval\nRandom Intercept", 
        colour = "County contains\nnew Conservative\nconstituencies") +
   ylab("Value") + 
   xlab("County") 
+
 df1 <- df[53:104,] %>% 
   arrange(condval) %>% 
   mutate(grp = factor(grp, levels=grp))
-ggplot(data = df1, aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+
+ggplot(data = df1, aes(x = grp, y = condval, ymin = condval-CI, ymax = condval+CI)) +
   geom_errorbar(aes(colour=flip), position = position_dodge(width = 0.2), width = 0.1) +
   geom_point(position = position_dodge(width = 0.2)) +
   coord_flip() + 
   geom_hline(yintercept = 0, colour="red") +
   scale_colour_manual(values = c("grey", "black")) +
   theme_classic() + 
-  labs(title = "Linear Mixed Effects Model\nRandom Intercept: over65", 
+  labs(title = "Linear Mixed Effects Model: 90% Confidence Interval\nRandom Intercept: over65", 
        colour = "County contains\nnew Conservative\nconstituencies") +
   ylab("Value") + 
   xlab("County") 
+
 df2 <- df[105:156,] %>% 
   arrange(condval) %>% 
   mutate(grp = factor(grp, levels=grp))
-ggplot(data = df2, aes(x = grp, y = condval, ymin = condval-condsd, ymax = condval+condsd)) +
+
+ggplot(data = df2, aes(x = grp, y = condval, ymin = condval-CI, ymax = condval+CI)) +
    geom_errorbar(aes(colour=flip), position = position_dodge(width = 0.2), width = 0.1) +
   geom_point(position = position_dodge(width = 0.2)) +
   coord_flip() + 
   geom_hline(yintercept = 0, colour="red") +
   scale_colour_manual(values = c("grey", "black")) +
   theme_classic() + 
-  labs(title = "Linear Mixed Effects Model\nRandom Intercept: deprived", 
+  labs(title = "Linear Mixed Effects Model: 90% Confidence Interval\nRandom Intercept: deprived", 
        colour = "County contains\nnew Conservative\nconstituencies") +
   ylab("Value") + 
   xlab("County")  
+
 df <- df %>% 
-  mutate(signifigance = ifelse(condval-condsd <0 & condval+condsd <0, "negative", 
-                      ifelse(condval-condsd >0 & condval+condsd >0, "positive", "not significant"))
+  mutate(significance = factor(
+    ifelse(condval-CI <0 & condval+CI <0, "negative", 
+                      ifelse(condval-CI >0 & condval+CI >0, "positive", "not significant")))
          ) %>% 
   cbind(rep(counties_simp$geometry,3)) %>% 
   st_as_sf()
 ```
 
+```{r, fig.height=6, fig.width=12}
+ggarrange(pp1,pp2,
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+ggarrange(pp3,pp4, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+```
+
+
+
 
 ```{r, fig.height=6, fig.width=12}
 b1 <- ggplot(df[1:52,]) + 
-  geom_sf(aes(fill=signifigance)) + 
-  labs(title = "Random Intercept Significance", 
+  geom_sf(aes(fill=significance)) + 
+  labs(title = "Random Intercept: Significance 90%", 
        subtitle = "Red Lines Denote New Conservative Wins", 
        fill = "Neg/Pos\nAddition\nto Slope") + 
-  scale_fill_brewer(type="div") + 
-  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
+  scale_fill_manual(values = c("negative" = "lightblue3",
+                                "positive"="burlywood3",
+                                "not significant"="white")) + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="darkred")
 b2 <- ggplot(df[53:104,]) + 
-  geom_sf(aes(fill=signifigance)) + 
-  labs(title = "Random Slope (Over 65) Significance", 
+  geom_sf(aes(fill=significance)) + 
+  labs(title = "Random Slope (Over 65): Significance 90%", 
        subtitle = "Red Lines Denote New Conservative Wins", 
        fill = "Neg/Pos\nAddition\nto Slope") + 
-  scale_fill_brewer(type="div") + 
-  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
+  scale_fill_manual(values = c("negative" = "lightblue3",
+                                "positive"="burlywood3",
+                                "not significant"="white")) + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="darkred")
 b3 <- ggplot(df[105:156,]) + 
-  geom_sf(aes(fill=signifigance)) + 
-  labs(title = "Random Slope (Deprived) Significance", 
+  geom_sf(aes(fill=significance)) + 
+  labs(title = "Random Slope (Deprived): Significance 90%", 
        subtitle = "Red Lines Denote New Conservative Wins", 
        fill = "Neg/Pos\nAddition\nto Slope") + 
-  scale_fill_brewer(type="div") + 
-  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="red")
-b1
+  scale_fill_manual(values = c("negative" = "lightblue3",
+                                "positive"="burlywood3",
+                                "not significant"="white")) + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="darkred")
+#b1
 ggarrange(b2, b3,  
           ncol=2, nrow=1, common.legend = TRUE, legend="right")
 ```
@@ -792,25 +891,25 @@ all_elections_polygons_simp2 <- all_elections_polygons_simp2 %>%
 
 ```{r}
 s1 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=total_slope_over65),lwd=.2) +
-  scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Over 65") + 
+  scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE, name="Over 65") + 
 #  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Fixed + Random Slope") + 
-  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="darkred")
 s2 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=total_slope_deprived),lwd=.2) +
-  scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Deprived") + 
+  scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE, name="Deprived") + 
 #  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Fixed + Random Slope") + 
-  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="darkred")
 s3 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=rand_slope_over65),lwd=.2) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Over 65") + 
 #  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Random Slope") + 
-  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="darkred")
 s4 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=rand_slope_deprived),lwd=.2) +
   scale_fill_continuous_diverging(palette = 'Vik', mid = 0, name="Deprived") + 
 #  geom_sf(data=counties_simp2, alpha=0,lwd=.25, colour="black") + 
   labs(title = "Random Slope") + 
-  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="red")
+  geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="darkred")
 ```
 
 
@@ -822,10 +921,493 @@ Red lines show seats which flipped from non-Conservative to Conservative.
 
 
 ```{r, fig.width=12, fig.height=6}
-# ggarrange(s1,s2, 
-#           ncol=2, nrow=1, common.legend = FALSE, legend="right")
+ggarrange(s1,s2,
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ggarrange(s3,s4, 
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
 
+
+
+### GWR 
+
+
+```{r}
+
+coords <- st_centroid(all_elections_polygons2$geometry) %>%
+  st_coordinates()
+
+GWRbandwidth <- gwr.sel(con_change1 ~ over65 + deprived, 
+                data=all_elections_polygons2, coords=coords, adapt=T)
+
+GWRbandwidth
+
+#run the gwr model
+gwr.model = gwr(con_change1 ~ over65 + deprived, 
+                data=all_elections_polygons2, coords=coords, 
+                adapt=GWRbandwidth, hatmatrix=TRUE, se.fit=TRUE) 
+
+gwr.model
+
+
+```
+
+
+```{r, fig.width=12, fig.height=12}
+
+# non-interaction variables
+gwr_table1 <- as.data.frame(gwr.model$SDF) %>% 
+  cbind(all_elections_polygons_simp2$constituency_name) %>% 
+  cbind(all_elections_polygons_simp2$county) %>% 
+  mutate(county = all_elections_polygons_simp2$county, 
+         constituency_name = `all_elections_polygons_simp2$constituency_name`, 
+         intercept = `X.Intercept.`, 
+         intercept_se = `X.Intercept._se`, 
+         z_over65_se = 1.96*over65_se, 
+         z_deprived_se = 1.96*deprived_se) %>% 
+  select(constituency_name, county, intercept, over65, deprived, intercept_se, over65_se, deprived_se, z_over65_se, z_deprived_se)
+
+ggplot(data = gwr_table1, aes(y = over65, x = constituency_name, ymin = over65-z_over65_se, ymax = over65+z_over65_se)) +
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour="darkred") +
+  scale_colour_manual(values = c("grey", "black")) +
+  theme_classic() + 
+  labs(title = "GWR Coefficient: 95% Confidence Interval", 
+       subtitle = "Over 65", 
+       colour = "County contains\nnew Conservative\nconstituencies") +
+  ylab("Value") + 
+  xlab("Constituency") +
+  facet_wrap(~county)
+
+ggplot(data = gwr_table1, aes(y = deprived, x = constituency_name, ymin = deprived-z_deprived_se, ymax = deprived+z_deprived_se)) +
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour="darkred") +
+  scale_colour_manual(values = c("grey", "black")) +
+  theme_classic() + 
+  labs(title = "GWR Coefficient: 95% Confidence Interval", 
+       subtitle = "Deprived", 
+       colour = "County contains\nnew Conservative\nconstituencies") +
+  ylab("Value") + 
+  xlab("Constituency") + 
+  facet_wrap(~county)
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+gwr_table1 <- gwr_table1 %>% 
+  cbind(all_elections_polygons_simp2$geometry) %>% 
+  st_as_sf()
+
+j1 <- ggplot(gwr_table1) + 
+  geom_sf(aes(fill=over65), lwd=0.1) +
+  geom_sf(data=flip_df2, alpha=0,lwd=.2, colour="darkred") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  labs(title = "GWR Coefficient")
+
+j2 <- ggplot(gwr_table1) + 
+  geom_sf(aes(fill=deprived), lwd=0.1) +
+  geom_sf(data=flip_df2, alpha=0,lwd=.2, colour="darkred") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "GWR Coefficient")
+
+ggarrange(j1,j2, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+```{r, fig.height=6, fig.width=12}
+gwr_table1 <- gwr_table1 %>% 
+  mutate(significance_over65 = factor(
+    ifelse(over65-z_over65_se <0 & over65+z_over65_se<0, "negative", 
+                      ifelse(over65-z_over65_se>0 & over65+z_over65_se>0, "positive", "not significant"))),
+         significance_deprived = factor(
+           ifelse(deprived-z_deprived_se <0 & deprived+z_deprived_se<0, "negative", 
+                      ifelse(deprived-z_deprived_se>0 & deprived+z_deprived_se>0, "positive", "not significant")))
+         )
+
+k1 <- ggplot(gwr_table1) + 
+  geom_sf(aes(fill=significance_over65), lwd=0.1) + 
+  labs(title = "GWR Coefficient: Over 65 (95% CI)", 
+       subtitle = "Red Lines Denote New Conservative Wins", 
+       fill = "Neg/Pos\nSlope") + 
+  scale_fill_manual(values = c("negative" = "lightblue3",
+                                "positive"="burlywood3",
+                                "not significant"="white")) + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="darkred")
+
+k2 <- ggplot(gwr_table1) + 
+  geom_sf(aes(fill=significance_deprived), lwd=0.1) + 
+  labs(title = "GWR Coefficient: Deprived (95% CI)", 
+       subtitle = "Red Lines Denote New Conservative Wins", 
+       fill = "Neg/Pos\nSlope") + 
+  scale_fill_manual(values = c("negative" = "lightblue3",
+                                "positive"="burlywood3",
+                                "not significant"="white")) + 
+  geom_sf(data=flip_df, alpha=0,lwd=.35, colour="darkred")
+
+ggarrange(k1,k2,  
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+```
+
+
+
+```{r, fig.height=6, fig.width=12}
+# 
+# # LISA clusters for coefficients of change variables
+# 
+# # construct two matrices for spatial analysis
+# neighbours <- poly2nb(all_elections_polygons2, queen=T)
+# weights <- nb2listw(neighbours, style="W", zero.policy = T)
+# 
+# gwr_table1 <- as.data.frame(gwr_table1)
+# # set arrangement the 8 plots
+# par(mfrow = c(1,2))
+# 
+# for (i in 4:5) {
+# 
+# #######
+# 
+# locali <- localmoran(gwr_table1[,i], weights, zero.policy = TRUE)
+# 
+# ######
+# 
+# # Plot LISA clusters
+# 
+# quadrant <- vector(mode="numeric",length=nrow(locali))
+# 
+# # centers the variable of interest around its mean
+# m.lowqual.change <- gwr_table1[,i] - mean(gwr_table1[,i])     
+# 
+# # centers the local Moran's around the mean
+# m.local <- locali[,1] - mean(locali[,1])    
+# 
+# # significance threshold
+# signif <- 0.1 
+# 
+# # builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
+# # andplaces non-significant Moran in the category 0.
+# quadrant[m.lowqual.change >0 & m.local>0] <- 4  
+# quadrant[m.lowqual.change <0 & m.local<0] <- 1      
+# quadrant[m.lowqual.change <0 & m.local>0] <- 2
+# quadrant[m.lowqual.change >0 & m.local<0] <- 3
+# quadrant[locali[,5]>signif] <- 0   
+# 
+# # plot in r
+# brks <- c(0,1,2,3,4)
+# colors <- c("white","blue",rgb(0,0,1,alpha=0.4),rgb(1,0,0,alpha=0.4),"red")
+# plot(all_elections_polygons_simp2$geometry, border="gray", col=colors[findInterval(quadrant,brks,all.inside=FALSE)])
+# box()
+# legend("bottomleft", legend = c("insignificant","low-low","low-high","high-low","high-high"),
+#        fill=colors, bty="n")
+# title(main = paste("LISA Clusters: ", names(gwr_table1)[i]))
+# 
+# }
+
+```
+
+### PCA 
+
+
+```{r}
+vars2 <- all_elections_polygons2 %>% 
+  st_drop_geometry() %>% 
+  dplyr::select(c("over65", "deprived"))
+
+res.pca <- prcomp(vars2)
+res.pca
+
+fviz_pca_biplot(res.pca, repel = TRUE,
+                col.var = "darkblue", # Variables color
+                col.ind = "grey"  # Individuals color
+                )
+
+# Results for individuals
+res.ind <- get_pca_ind(res.pca)
+# results for variables
+res.var <- get_pca_var(res.pca)
+# Varimax rotation
+v <- varimax(res.var$coord[,1:2], normalize = TRUE)
+
+scores <- res.ind$coord[,1:2] %*% v$rotmat
+
+pca_df <- as.data.frame(cbind(all_elections_polygons2$con_change1, scores))
+colnames(pca_df) <- c("con_change", "PC1", "PC2")
+
+mod_pca <- lm(con_change ~ PC1 + PC2, data = pca_df)
+summary(mod_pca)
+
+coef_over65_pca <- (v$loadings[1,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[1,2] * as.numeric(mod_pca$coefficients[3]))
+coef_deprived_pca <- (v$loadings[2,1] * as.numeric(mod_pca$coefficients[2])) + 
+  (v$loadings[2,2] * as.numeric(mod_pca$coefficients[3]))
+
+
+table_pca <- as.data.frame(rbind(coef_over65_pca, coef_deprived_pca)) %>% 
+  cbind(names(vars2)) 
+  
+colnames(table_pca) <- c("Coefficient","Variable")
+
+
+```
+
+
+### GWR PCA
+
+```{r}
+
+# now the GWR model with GWPCA components
+GWRbandwidth.pca <- gwr.sel(con_change ~ PC1 + PC2, 
+                        data=pca_df, coords=coords, adapt=T)
+
+GWRbandwidth.pca
+
+#run the gwr model
+gwr.model.pca = gwr(con_change ~ PC1 + PC2, 
+                        data=pca_df, coords=coords, 
+                adapt=GWRbandwidth.pca, hatmatrix=TRUE, se.fit=TRUE) 
+
+# before loop, define vectors
+coef_over65_gwrpca <- vector()
+coef_deprived_gwrpca <- vector()
+
+
+gwrPC1 <- gwr.model.pca$SDF$PC1
+gwrPC2 <- gwr.model.pca$SDF$PC2
+
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:572) {
+coef_over65_gwrpca[i] <- as.vector((v$loadings[1,1] * gwrPC1[i])) + 
+  (v$loadings[1,2] * gwrPC2[i])
+coef_deprived_gwrpca[i] <- as.vector((v$loadings[2,1] * gwrPC1[i])) + 
+  (v$loadings[2,2] * gwrPC2[i])
+
+}
+
+# bind into a table
+gwr_pca_table <- as.data.frame(cbind(coef_over65_gwrpca, coef_deprived_gwrpca)) %>% 
+  cbind(all_elections_polygons_simp2) %>% 
+  st_as_sf()
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+zz1 <- ggplot(gwr_pca_table) + 
+  geom_sf(aes(fill=coef_over65_gwrpca), lwd=0.1) + 
+  geom_sf(data=flip_df2, alpha=0,lwd=0.2, colour="darkred") + 
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over65") + 
+  labs(title = "GWR with PCA Slopes")
+
+zz2<- ggplot(gwr_pca_table) + 
+  geom_sf(aes(fill=coef_deprived_gwrpca), lwd=0.1) +
+  geom_sf(data=flip_df2, alpha=0,lwd=.2, colour="darkred") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "GWR with PCA Slopes")
+
+ggarrange(zz1,zz2, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+# 
+# # LISA clusters for coefficients of change variables
+# 
+# 
+# gwr_pca_table <- as.data.frame(gwr_pca_table)
+# # set arrangement the 8 plots
+# par(mfrow = c(1,2))
+# 
+# for (i in 1:2) {
+# 
+# #######
+# 
+# locali <- localmoran(gwr_pca_table[,i], weights, zero.policy = TRUE)
+# 
+# ######
+# 
+# # Plot LISA clusters
+# 
+# quadrant <- vector(mode="numeric",length=nrow(locali))
+# 
+# # centers the variable of interest around its mean
+# m.lowqual.change <- gwr_pca_table[,i] - mean(gwr_pca_table[,i])     
+# 
+# # centers the local Moran's around the mean
+# m.local <- locali[,1] - mean(locali[,1])    
+# 
+# # significance threshold
+# signif <- 0.1 
+# 
+# # builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
+# # andplaces non-significant Moran in the category 0.
+# quadrant[m.lowqual.change >0 & m.local>0] <- 4  
+# quadrant[m.lowqual.change <0 & m.local<0] <- 1      
+# quadrant[m.lowqual.change <0 & m.local>0] <- 2
+# quadrant[m.lowqual.change >0 & m.local<0] <- 3
+# quadrant[locali[,5]>signif] <- 0   
+# 
+# # plot in r
+# brks <- c(0,1,2,3,4)
+# colors <- c("white","blue",rgb(0,0,1,alpha=0.4),rgb(1,0,0,alpha=0.4),"red")
+# plot(all_elections_polygons_simp2$geometry, border="gray", col=colors[findInterval(quadrant,brks,all.inside=FALSE)])
+# box()
+# legend("bottomleft", legend = c("insignificant","low-low","low-high","high-low","high-high"),
+#        fill=colors, bty="n")
+# title(main = paste("LISA Clusters: ", names(gwr_pca_table)[i]))
+# 
+# }
+
+```
+
+
+
+### GWR GWPCA
+```{r}
+# first, perform the GWPCA
+
+rownames(coords) <- NULL
+d1s <- SpatialPointsDataFrame(coords, vars2)
+
+bw.choice <- bw.gwpca(d1s,vars=colnames(d1s@data),k=2)
+pca.gw.auto  <- gwpca(d1s,vars=colnames(d1s@data),bw=bw.choice,k=2,scores = TRUE)
+
+scores <- as.data.frame(pca.gw.auto$pca$scores)
+PC1gw <- scores[,1]
+PC2gw <- scores[,2]
+
+
+pcagw.df <- as.data.frame(cbind(all_elections_polygons_simp2$con_change1, PC1gw, PC2gw))
+colnames(pcagw.df) <- c("con_change", "PC1gw", "PC2gw")
+
+# pcagw.df <- as.data.frame(cbind(df19.17$con, PC1gw, PC2gw, df19.17$geometry)) %>% 
+#   st_as_sf()
+# colnames(pcagw.df) <- c("con", "PC1gw", "PC2gw", "geometry")
+# str(pcagw.df)
+
+# now the GWR model with GWPCA components
+GWRbandwidth.gwpca <- gwr.sel(con_change ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, adapt=T)
+
+GWRbandwidth.gwpca
+
+#run the gwr model
+gwr.model.gwpca = gwr(con_change ~ PC1gw + PC2gw, 
+                        data=pcagw.df, coords=coords, 
+                adapt=GWRbandwidth.gwpca, hatmatrix=TRUE, se.fit=TRUE) 
+
+
+# before loop, define vectors
+coef_over65_gwpca <- vector()
+coef_deprived_gwpca <- vector()
+
+
+# loadings from gw pca
+lds <- as.data.frame(pca.gw.auto$loadings)
+
+gwPC1 <- gwr.model.gwpca$SDF$PC1gw
+gwPC2 <- gwr.model.gwpca$SDF$PC2gw
+
+# calculate coefficient for each variable by same technique as before
+for (i in 1:572) {
+coef_over65_gwpca[i] <- as.vector((lds[i,"over65.PC1"] * gwPC1[i])) + 
+  (lds[i,"over65.PC2"] * gwPC2[i])
+coef_deprived_gwpca[i] <- as.vector((lds[i,"deprived.PC1"] * gwPC1[i])) + 
+  (lds[i,"deprived.PC2"] * gwPC2[i])
+
+}
+
+# bind into a table
+gwr_gwpca_table <- as.data.frame(cbind(coef_over65_gwpca, coef_deprived_gwpca)) %>% 
+  cbind(all_elections_polygons_simp2) %>% 
+  st_as_sf()
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+
+yy1 <- ggplot(gwr_gwpca_table) + 
+  geom_sf(aes(fill=coef_over65_gwrpca), lwd=0.1) + 
+  geom_sf(data=flip_df2, alpha=0,lwd=0.2, colour="darkred") + 
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over65") + 
+  labs(title = "GWR with PCA Slopes")
+
+yy2<- ggplot(gwr_gwpca_table) + 
+  geom_sf(aes(fill=coef_deprived_gwrpca), lwd=0.1) +
+  geom_sf(data=flip_df2, alpha=0,lwd=.2, colour="darkred") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "GWR with PCA Slopes")
+
+ggarrange(yy1,yy2, 
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+
+```{r, fig.height=6, fig.width=12}
+# 
+# # LISA clusters for coefficients of change variables
+# 
+# 
+# gwr_gwpca_table <- as.data.frame(gwr_gwpca_table)
+# # set arrangement the 8 plots
+# par(mfrow = c(1,2))
+# 
+# for (i in 1:2) {
+# 
+# #######
+# 
+# locali <- localmoran(gwr_gwpca_table[,i], weights, zero.policy = TRUE)
+# 
+# ######
+# 
+# # Plot LISA clusters
+# 
+# quadrant <- vector(mode="numeric",length=nrow(locali))
+# 
+# # centers the variable of interest around its mean
+# m.lowqual.change <- gwr_gwpca_table[,i] - mean(gwr_gwpca_table[,i])     
+# 
+# # centers the local Moran's around the mean
+# m.local <- locali[,1] - mean(locali[,1])    
+# 
+# # significance threshold
+# signif <- 0.1 
+# 
+# # builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
+# # andplaces non-significant Moran in the category 0.
+# quadrant[m.lowqual.change >0 & m.local>0] <- 4  
+# quadrant[m.lowqual.change <0 & m.local<0] <- 1      
+# quadrant[m.lowqual.change <0 & m.local>0] <- 2
+# quadrant[m.lowqual.change >0 & m.local<0] <- 3
+# quadrant[locali[,5]>signif] <- 0   
+# 
+# # plot in r
+# brks <- c(0,1,2,3,4)
+# colors <- c("white","blue",rgb(0,0,1,alpha=0.4),rgb(1,0,0,alpha=0.4),"red")
+# plot(all_elections_polygons_simp2$geometry, border="gray", col=colors[findInterval(quadrant,brks,all.inside=FALSE)])
+# box()
+# legend("bottomleft", legend = c("insignificant","low-low","low-high","high-low","high-high"),
+#        fill=colors, bty="n")
+# title(main = paste("LISA Clusters: ", names(gwr_gwpca_table)[i]))
+# 
+# }
+
+```
 
