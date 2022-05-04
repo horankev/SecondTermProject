@@ -77,9 +77,9 @@ all_elections1 <- all_elections %>%
          log_density = log(population_density),
          born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
          density = population_density, 
-         con_flip = ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0), 
-         county = factor(county)) %>% 
-  subset(county != "Isle of Wight")
+         con_flip = ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0)) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county))
 # df with detailed constituency sf polygons for contiguity computations
 all_elections_polygons <- left_join(all_elections1 %>% st_drop_geometry(), 
                                     constituency_polygons, by = c("ons_const_id" = "pcon19cd")) %>% 
@@ -334,6 +334,21 @@ plot(model1)
 ```
 
 #### Presence Of Spatial Autocorrelation
+
+```{r, fig.height=6, fig.width=6}
+
+mod1_resids <- model1$residuals
+mod1_resids_df <- cbind(all_elections_polygons_simp$geometry,mod1_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod1_resids = as.numeric(mod1_resids))
+ggplot(mod1_resids_df) + 
+  geom_sf(aes(fill = mod1_resids))  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "OLS Residuals")                      
+                        
+                        
+```
 
 ```{r, fig.height=8, fig.width=8}
 
@@ -1410,4 +1425,158 @@ ggarrange(yy1,yy2,
 # }
 
 ```
+
+### Are Residuals Spatially Correlated?
+### Maps of Residuals from OLS and GAM with CAR models
+
+```{r, fig.height=6, fig.width=6}
+
+mod1_resids <- model1$residuals
+mod1_resids_df <- cbind(all_elections_polygons_simp$geometry,mod1_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod1_resids = as.numeric(mod1_resids))
+m1 <- ggplot(mod1_resids_df) + 
+  geom_sf(aes(fill = mod1_resids),lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "OLS Residuals")         
+m1
+```
+
+
+```{r, fig.height=12, fig.width=12}
+
+mod3.1_resids <- model3.1$residuals
+mod3.1_resids_df <- cbind(all_elections_polygons_simp$geometry,mod3.1_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod3.1_resids = as.numeric(mod3.1_resids))
+m3.1 <- ggplot(mod1_resids_df) + 
+  geom_sf(aes(fill = mod3.1_resids),lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "GAM with CAR:\ncounty level\nOver 65\nResiduals") 
+
+mod3.2_resids <- model3.2$residuals
+mod3.2_resids_df <- cbind(all_elections_polygons_simp$geometry,mod3.2_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod3.2_resids = as.numeric(mod3.2_resids))
+m3.2 <- ggplot(mod1_resids_df) + 
+  geom_sf(aes(fill = mod3.2_resids),lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "GAM with CAR:\ncounty level\nDeprived\nResiduals")
+
+mod4.1_resids <- model4.1$residuals
+mod4.1_resids_df <- cbind(all_elections_polygons_simp2$geometry,mod4.1_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod4.1_resids = as.numeric(mod4.1_resids))
+m4.1 <- ggplot(mod4.1_resids_df) + 
+  geom_sf(aes(fill = mod4.1_resids),lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "GAM with CAR:\nconstituency level\nOver 65\nResiduals")
+
+mod4.2_resids <- model4.2$residuals
+mod4.2_resids_df <- cbind(all_elections_polygons_simp$geometry,mod4.2_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod4.2_resids = as.numeric(mod4.2_resids))
+m4.2 <- ggplot(mod4.2_resids_df) + 
+  geom_sf(aes(fill = mod4.2_resids),lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "GAM with CAR:\nconstituency level\nDeprived\nResiduals")
+
+mod5.1_resids <- model5.1$residuals
+mod5.1_resids_df <- cbind(all_elections_polygons_simp$geometry,mod5.1_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod5.1_resids = as.numeric(mod5.1_resids))
+m5.1 <- ggplot(mod5.1_resids_df) + 
+  geom_sf(aes(fill = mod5.1_resids),lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "GAM with CAR:\nregion level\nOver 65\nResiduals")
+
+mod5.2_resids <- model5.2$residuals
+mod5.2_resids_df <- cbind(all_elections_polygons_simp$geometry,mod5.2_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod5.2_resids = as.numeric(mod5.2_resids))
+m5.2 <- ggplot(mod5.2_resids_df) + 
+  geom_sf(aes(fill = mod5.2_resids),lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "GAM with CAR:\nregion level\nDeprived\nResiduals")
+
+ggarrange(m3.1,m3.2,m4.1,m4.2,m5.1,m5.2, 
+          ncol=2, nrow=3, common.legend = FALSE, legend="right")
+
+```
+
+GAM with CAR: county level Over 65
+
+```{r}
+all_elections_polygons_simp_table <- as.data.frame(all_elections_polygons_simp) %>% 
+  st_as_sf()
+neighbours2 <- poly2nb(all_elections_polygons_simp_table, queen=T)
+weights_for_mods <- nb2listw(neighbours2, style="W", zero.policy = T)
+
+test3.1 <- moran.test(model3.1$residuals,weights_for_mods,zero.policy = TRUE)
+test3.1$estimate
+test3.1$p.value
+```
+
+GAM with CAR: county level Deprived
+
+```{r}
+test3.2 <- moran.test(model3.2$residuals,weights_for_mods,zero.policy = TRUE)
+test3.2$estimate
+test3.2$p.value
+
+all_elections_polygons_simp2_table <- as.data.frame(all_elections_polygons_simp2) %>% 
+  st_as_sf()
+neighbours3 <- poly2nb(all_elections_polygons_simp2_table, queen=T)
+weights_for_mods3 <- nb2listw(neighbours3, style="W", zero.policy = T)
+```
+
+GAM with CAR: constituency level Over 65
+
+```{r}
+test4.1 <- moran.test(model4.1$residuals,weights_for_mods3,zero.policy = TRUE)
+test4.1$estimate
+test4.1$p.value
+```
+
+GAM with CAR: constituency level Deprived
+
+```{r}
+test4.2 <- moran.test(model4.2$residuals,weights_for_mods3,zero.policy = TRUE)
+test4.2$estimate
+test4.2$p.value
+```
+
+GAM with CAR: region level Over 65
+
+```{r}
+test5.1 <- moran.test(model5.1$residuals,weights_for_mods,zero.policy = TRUE)
+test5.1$estimate
+test5.1$p.value
+```
+
+GAM with CAR: region level Deprived
+
+```{r}
+test5.2 <- moran.test(model5.2$residuals,weights_for_mods,zero.policy = TRUE)
+test5.2$estimate
+test5.2$p.value
+```
+
+OLS
+
+```{r}
+test1 <- moran.test(model1$residuals,weights_for_mods,zero.policy = TRUE)
+test1$estimate
+test1$p.value
+```
+
+
+
 
