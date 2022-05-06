@@ -7,7 +7,6 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
-
 ```{r}
 library(sf)
 library(parlitools)
@@ -50,10 +49,7 @@ here()
 
 The 2019 UK General Election saw the Conservative Party improve their position dramatically in the House of Commons. Not only did they hold the largest number of seats, as in the previous election of 2017, but now they held a landslide overall majority of 80 seats. Many of the gains which the Conservatives made were in seats which were long-held by Labour candidates, often referred to as the *'red wall'*. These are a set of constituencies in England and Wales, mainly in the Midlands, Northern England, and North East Wales, which have historically tended to support the Labour party. These areas were also generally associated with high levels of support for leaving the EU in the Brexit referendum. It is often pointed out that there is a temptation for political commentators in the popular press to speak of regions such as these as though they were a monolith - all composed of similarly thinking and similarly motivated individuals. This project aims to use census data and the results of the election in each constituency to examine the degree to which each of several socio-economic characteristics impacted the observed change in Conservative vote, and how this varied across the country. In particular, I wish to see if the change in voting pattern which undeniably occurred in these *'red wall'* seats has one simple explanation which applies across the region, or if different factors are at play in different parts of this traditional Labour stronghold.
 
-
-*** 
-
-
+------------------------------------------------------------------------
 
 ```{r}
 all_elections <- readRDS(here("data", "all_elections.rds"))
@@ -128,14 +124,9 @@ flip_df <- all_elections_polygons_simp %>%
   filter(con_flip == 1)
 ```
 
+### Context
 
-### Context 
-
-Presented below are the the seats in England and Wales viewed firstly in terms of the size of the rise (or fall) of the conservative vote in 2019 from 2017. The next map shows the seats which actually flipped from another party to the Conservatives. 
-Also shown, below these, are the ranking of the increase in Conservative votes across all the constituencies. 
-
-
-    
+Presented below are the the seats in England and Wales viewed firstly in terms of the size of the rise (or fall) of the conservative vote in 2019 from 2017. The next map shows the seats which actually flipped from another party to the Conservatives. Also shown, below these, are the ranking of the increase in Conservative votes across all the constituencies.
 
 ```{r, fig.height=6, fig.width=12}
 all_elections_polygons_simp <- all_elections_polygons_simp %>% 
@@ -172,9 +163,7 @@ xxx <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=con_gain_rank),lwd
 cgainvotes + cgainseat + xxx
 ```
 
- 
- 
-These maps show the collapse of Labour's *'red wall'* in 2019 and where exactly these constituencies are located. A clear shrinkage is visible across Northern Wales and England.  
+These maps show the collapse of Labour's *'red wall'* in 2019 and where exactly these constituencies are located. A clear shrinkage is visible across Northern Wales and England.
 
 ```{r, fig.height=6, fig.width=12}
 l10 <- ggplot(all_elections_polygons_simp) + geom_sf(aes(fill=labour10),lwd=0.1) + 
@@ -210,19 +199,19 @@ ggarrange(l10, l15, l17, l19,
           ncol=4, nrow=1, common.legend = TRUE, legend="right")
 ```
 
+### Description of Variables
 
-### Description of Variables 
+I have restricted my analysis to England and Wales where this general increase in Conservative vote was observed. Scotland and in particular Northern Ireland have very different political dynamics at play.
 
-I have restricted my analysis to England and Wales where this general increase in Conservative vote was observed. Scotland and in particular Northern Ireland have very different political dynamics at play. 
+### Response Variable:
 
+$\begin{aligned}\LARGE{con\_change_1 = \frac{100(con\_19 - con\_17)}{(100 - con\_17)}}\end{aligned}$
 
-### Response Variable: 
-$\begin{aligned}\LARGE{con\_change_1 =  \frac{100(con\_19 - con\_17)}{(100 - con\_17)}}\end{aligned}$ 
-
+```{=tex}
 \begin{center}
 #### "percentage of those who didn't vote conservative last time who did this time"
 \end{center}
-
+```
 ```{r, fig.height=4, fig.width=4}
 a1 <- ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="darkred", fill="darkblue") + 
   labs(title = "Histogram Of Dependent Variable In 571 Constituencies") + 
@@ -231,7 +220,6 @@ a1 <- ggplot(all_elections1) + geom_histogram(aes(x=con_change1), colour="darkre
 a1
 
 ```
-
 
 ```{r, fig.height=6, fig.width=12}
 
@@ -257,11 +245,9 @@ ggarrange(a2, a3,
 
 ```
 
-### Explanatory Variables 
+### Explanatory Variables
 
-I have chosen the following explanatory variables, which provide a broad sweep of the composition of each constituency: 
-
- 
+I have chosen the following explanatory variables, which provide a broad sweep of the composition of each constituency:
 
 ```{r, fig.height=6, fig.width=12}
 par(mfrow=c(1,2))
@@ -298,73 +284,85 @@ subset2 %>%
   corrplot.mixed(order = 'AOE', tl.col = 'black')
 ```
 
+These are the nine variables which I extracted from the census dataset which I felt could be meaningful in terms of voting patterns.
 
-These are the nine variables which I extracted from the census dataset which I felt could be meaningful in terms of voting patterns. 
+However, they not surprisingly display high levels of correlation.
 
-However, they not surprisingly display high levels of correlation. 
+I have decided to use just two in the following models.
 
-I have decided to use just two in the following models. 
+'deprived' represents a lot of the same information as 'low_qual' and 'unemployed'.
 
-'deprived' represents a lot of the same information as 'low_qual' and 'unemployed'. 
-
-'over65' represents a lot of the same information as 'student', 'log_density', 'house_owned' and 'born_elsewhere'. 
+'over65' represents a lot of the same information as 'student', 'log_density', 'house_owned' and 'born_elsewhere'.
 
 Furthermore, 'deprived' and 'over 65' show a low level of mutual correlation.
- 
-  
-  
 
-*** 
+------------------------------------------------------------------------
 
-#### Ordinary Linear Model: By Constituency 
+#### Ordinary Linear Model: By Constituency
 
-A one percent increase of 'over65's or 'deprived's in a constituency, controlling for the other, leads to a increase of approximately 0.7% in the percentage of non-Conservative voters who changed their vote to Conservatives. 
-
+A one percent increase of 'over65's or 'deprived's in a constituency, controlling for the other, leads to a increase of approximately 0.7% in the percentage of non-Conservative voters who changed their vote to Conservatives.
 
 ```{r}
 model1 <- lm(con_change1 ~ ., data=subset2)
 summary(model1)
+
+model1.1 <- lm(con_change1 ~.+I(deprived^2), data=subset2)
+summary(model1.1)
+
+model1.2 <- lm(con_change1 ~deprived+over65+I(deprived^2), data=subset2)
+summary(model1.2)
+
 ```
-
-
 
 ```{r,fig.height=6,fig.width=8}
 par(mfrow=c(2,2))
 plot(model1)
+
+par(mfrow=c(2,2))
+plot(model1.1)
 ```
 
 #### Presence Of Spatial Autocorrelation
 
-```{r, fig.height=6, fig.width=6}
+```{r, fig.height=6, fig.width=12}
 
 mod1_resids <- model1$residuals
 mod1_resids_df <- cbind(all_elections_polygons_simp$geometry,mod1_resids) %>% 
   as.data.frame() %>% 
   st_as_sf(crs=4326) %>% 
   mutate(mod1_resids = as.numeric(mod1_resids))
-ggplot(mod1_resids_df) + 
-  geom_sf(aes(fill = mod1_resids))  +
+z1 <- ggplot(mod1_resids_df) + 
+  geom_sf(aes(fill = mod1_resids), lwd=0.1)  +
   scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
                        name= "OLS Residuals")                      
-                        
-                        
+                  
+mod1.1_resids <- model1.1$residuals
+mod1.1_resids_df <- cbind(all_elections_polygons_simp$geometry,mod1.1_resids) %>% 
+  as.data.frame() %>% 
+  st_as_sf(crs=4326) %>% 
+  mutate(mod1.1_resids = as.numeric(mod1.1_resids))
+z2 <- ggplot(mod1.1_resids_df) + 
+  geom_sf(aes(fill = mod1.1_resids), lwd=0.1)  +
+  scale_fill_continuous_diverging(palette = 'Green-Orange', mid = 0,
+                       name= "OLS with (deprived)^2 Residuals")
+
+z1 + z2
+
 ```
 
-```{r, fig.height=8, fig.width=8}
-
-# LISA clusters for coefficients of change variables
 
 
-all_elections_polygons_simp_table <- as.data.frame(all_elections_polygons_simp) %>% 
-  st_as_sf()
+#### LISA Clusters Residuals
 
-neighbours1 <- poly2nb(all_elections_polygons_simp_table, queen=T)
-weights1 <- nb2listw(neighbours1, style="W", zero.policy = T)
+```{r}
 
-all_elections_polygons_simp_table <- as.data.frame(all_elections_polygons_simp)
-#######
+neighbours1 <- poly2nb(all_elections_polygons)
+weights1 <- nb2listw(neighbours1, style="B", zero.policy = T)
 
-locali <- localmoran(all_elections_polygons_simp_table[,298], weights1, zero.policy = TRUE)
+do.lisa <- function(x){
+
+all_elections_polygons_simp_tablex <- cbind(all_elections_polygons$geometry,as.data.frame(x))
+locali <- localmoran(all_elections_polygons_simp_tablex[,2], weights1, zero.policy = TRUE)
 
 ######
 
@@ -373,7 +371,7 @@ locali <- localmoran(all_elections_polygons_simp_table[,298], weights1, zero.pol
 quadrant <- vector(mode="numeric",length=nrow(locali))
 
 # centers the variable of interest around its mean
-m.lowqual.change <- all_elections_polygons_simp_table[,298] - mean(all_elections_polygons_simp_table[,298])     
+m.conchange <- all_elections_polygons_simp_tablex[,2] - mean(all_elections_polygons_simp_tablex[,2])     
 
 # centers the local Moran's around the mean
 m.local <- locali[,1] - mean(locali[,1])    
@@ -382,11 +380,11 @@ m.local <- locali[,1] - mean(locali[,1])
 signif <- 0.1 
 
 # builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
-# andplaces non-significant Moran in the category 0.
-quadrant[m.lowqual.change >0 & m.local>0] <- 4  
-quadrant[m.lowqual.change <0 & m.local<0] <- 1      
-quadrant[m.lowqual.change <0 & m.local>0] <- 2
-quadrant[m.lowqual.change >0 & m.local<0] <- 3
+# and places non-significant Moran in the category 0.
+quadrant[m.conchange >0 & m.local>0] <- 4  
+quadrant[m.conchange <0 & m.local<0] <- 1      
+quadrant[m.conchange <0 & m.local>0] <- 2
+quadrant[m.conchange >0 & m.local<0] <- 3
 quadrant[locali[,5]>signif] <- 0   
 
 # plot in r
@@ -396,28 +394,30 @@ plot(all_elections_polygons_simp$geometry, border="gray", col=colors[findInterva
 box()
 legend("bottomleft", legend = c("insignificant","low-low","low-high","high-low","high-high"),
        fill=colors, bty="n")
-title(main = paste("LISA Clusters: ", names(all_elections_polygons_simp_table)[298]))
+title(main = paste("LISA Clusters: ", deparse(substitute(x))))
+}
 
+do.lisa(mod1.1_resids)
 
+mod1.2_resids <- model1.2$residuals
+do.lisa(mod1.2_resids)
 ```
 
 
 
 
-*** 
-
+------------------------------------------------------------------------
 
 ### Linear Mixed Model - Random Intercept and Slope by county
 
 ```{r, fig.width=4, fig.height=4}
-model2.2 <- lmer(con_change1 ~ 1 + over65 + deprived + (over65+deprived|county), 
+model2.2 <- lmer(con_change1 ~ 1 + over65 + deprived+ (over65+deprived|county), 
                data=all_elections_polygons)
 summary(model2.2)
 plot(model2.2)
 ```
 
-*** 
-
+------------------------------------------------------------------------
 
 ```{r, fig.height=6, fig.width=12}
 fix_efs <- fixef(model2.2) # fixed effects
@@ -455,9 +455,9 @@ pp4 <- ggplot(effects) + geom_sf(aes(fill=rand_slope_deprived)) +
   labs(title = "Random Effects: Slope")
 ```
 
-*** 
+------------------------------------------------------------------------
 
-Coefficient estimates for random slopes per county from linear mixed model. 
+Coefficient estimates for random slopes per county from linear mixed model.
 
 #### Values on caterpillar plot
 
@@ -531,9 +531,6 @@ ggarrange(pp3,pp4,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
 
-
-
-
 ```{r, fig.height=6, fig.width=12}
 b1 <- ggplot(df[1:52,]) + 
   geom_sf(aes(fill=significance)) + 
@@ -567,50 +564,48 @@ ggarrange(b2, b3,
           ncol=2, nrow=1, common.legend = TRUE, legend="right")
 ```
 
-*** 
-### Problems with LMM in this context 
+------------------------------------------------------------------------
 
-1. Constituencies, however, are not independent observations. 
+### Problems with LMM in this context
 
-2. MAUP.
+1.  Constituencies, however, are not independent observations.
 
-*** 
+2.  MAUP.
 
-#### Different approach 
+------------------------------------------------------------------------
 
-To account for non-independence (spatial autocorrelation) and MAUP (constituencies are the smallest recorded observation level), I will use a Generalised Additive Model (GAM). This will feature as a component a Conditional Autoregressive (CAR) model, which is an example of a Markov Random Field (MRF). It is also a multi-level model. 
+#### Different approach
 
-**First model: **
+To account for non-independence (spatial autocorrelation) and MAUP (constituencies are the smallest recorded observation level), I will use a Generalised Additive Model (GAM). This will feature as a component a Conditional Autoregressive (CAR) model, which is an example of a Markov Random Field (MRF). It is also a multi-level model.
 
-Conservative Change = $\alpha + \beta_{1}x_{1} + \beta_{2}x_{2} + \gamma_{0j} + \gamma_{1j}x_{1}$   
+**First model:**
 
-- with $\gamma_{0j} \sim CAR(\tau_{0}^{2})$, and $\gamma_{1j} \sim CAR(\tau_{1}^{2})$ 
+Conservative Change = $\alpha + \beta_{1}x_{1} + \beta_{2}x_{2} + \gamma_{0j} + \gamma_{1j}x_{1}$
 
-$\beta_{1}$ - over65 
+-   with $\gamma_{0j} \sim CAR(\tau_{0}^{2})$, and $\gamma_{1j} \sim CAR(\tau_{1}^{2})$
 
-$\beta_{2}$ - deprived 
+$\beta_{1}$ - over65
 
+$\beta_{2}$ - deprived
 
-$\gamma_{1j}$ - effect from 'over65' of being in geographical area $j$ 
- 
+$\gamma_{1j}$ - effect from 'over65' of being in geographical area $j$
 
+**Second model:**
 
-**Second model: **
+Conservative Change = $\alpha + \beta_{1}x_{1} + \beta_{2}x_{2} + \gamma_{0j} + \gamma_{2j}x_{2}$
 
-Conservative Change = $\alpha + \beta_{1}x_{1} + \beta_{2}x_{2} + \gamma_{0j} + \gamma_{2j}x_{2}$   
+-   with $\gamma_{0j} \sim CAR(\tau_{0}^{2})$, and $\gamma_{2j} \sim CAR(\tau_{2}^{2})$
 
-- with $\gamma_{0j} \sim CAR(\tau_{0}^{2})$, and $\gamma_{2j} \sim CAR(\tau_{2}^{2})$ 
+$\beta_{1} - over65$
 
-$\beta_{1} - over65$ 
+$\beta_{2} - deprived$
 
-$\beta_{2} - deprived$ 
+$\gamma_{2j}$ - effect from 'deprived' of being in geographical area $j$
 
-$\gamma_{2j}$ - effect from 'deprived' of being in geographical area $j$ 
+------------------------------------------------------------------------
 
-*** 
+#### GAM with CAR: county level
 
-
-#### GAM with CAR: county level 
 ##### Over 65
 
 ```{r}
@@ -623,9 +618,8 @@ names(nlist) <- counties$county
 # nlist[26]$`Isle of Wight` <- c(22,51)
 ```
 
-
 ```{r}
-model3.1 <- gam(con_change1 ~ over65 + deprived + 
+model3.1 <- gam(con_change1 ~ over65 + deprived + I(deprived^2) + 
                  s(county,bs='mrf',xt=list(nb=nlist)) +
                  s(county,bs='mrf',xt=list(nb=nlist), 
                    by=over65,k=2),
@@ -660,15 +654,15 @@ d3.1 <- ggplot(counties_simp1,aes(fill=total_slope_over65)) +
   labs(title = "Fixed + Random Slope")
 ```
 
-
 #### GAM with CAR county level
+
 ##### Deprived
 
 ```{r}
 model3.2 <- gam(con_change1 ~ over65 + deprived + 
                  s(county,bs='mrf',xt=list(nb=nlist)) +
                  s(county,bs='mrf',xt=list(nb=nlist), 
-                   by=deprived,k=2),
+                   by=deprived,k=2), 
                data=all_elections_polygons, family=gaussian, 
                weight=total_vote_19, method='REML')
 summary(model3.2)
@@ -699,7 +693,6 @@ d3.2 <- ggplot(counties_simp2,aes(fill=total_slope_deprived)) + geom_sf(lwd=.25,
   labs(title = "Fixed + Random Slope")
 ```
 
-
 ```{r, fig.height=6, fig.width=12}
 # ggarrange(d3.1,d3.2, 
 #           ncol=2, nrow=1, common.legend = FALSE, legend="right")
@@ -707,9 +700,10 @@ ggarrange(c3.1,c3.2,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
 
-*** 
+------------------------------------------------------------------------
 
 #### GAM with CAR region level
+
 ##### Over 65
 
 ```{r}
@@ -744,8 +738,8 @@ regions_simp <- regions_simp %>%
 )
 ```
 
-
 #### GAM with CAR region level
+
 ##### Deprived
 
 ```{r}
@@ -791,13 +785,13 @@ ggarrange(rr3,rr4,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
 
-*** 
+------------------------------------------------------------------------
 
-### Reasons for NaN's in county and region models? 
+### Reasons for NaN's in county and region models?
 
-1. Isle of Wight is a one constituency county? 
-2. Many counties have only 2, 3, 4 constituencies? 
-3. 
+1.  Isle of Wight is a one constituency county?
+2.  Many counties have only 2, 3, 4 constituencies?
+3.  
 
 ### GAM with CAR constituency level
 
@@ -856,8 +850,6 @@ nlist2[570]$`Ynys Mon` <- 8
 nlist2[253]$`Isle Of Wight` <- c(189,203,330,331,385)
 ```
 
-
-
 ```{r}
 # first, GAM CAR for over65 variable
 model4.1 <- gam(con_change1 ~ over65 + deprived + 
@@ -903,7 +895,6 @@ all_elections_polygons_simp2 <- all_elections_polygons_simp2 %>%
 )
 ```
 
-
 ```{r}
 s1 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=total_slope_over65),lwd=.2) +
   scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE, name="Over 65") + 
@@ -927,13 +918,9 @@ s4 <- ggplot() + geom_sf(data=all_elections_polygons_simp2,aes(fill=rand_slope_d
   geom_sf(data=flip_df2, alpha=0,lwd=.35, colour="darkred")
 ```
 
+Showing the change in the constituency slope as a result of being in each particular constituency.
 
-
-
-Showing the change in the constituency slope as a result of being in each particular constituency. 
-
-Red lines show seats which flipped from non-Conservative to Conservative. 
-
+Red lines show seats which flipped from non-Conservative to Conservative.
 
 ```{r, fig.width=12, fig.height=6}
 ggarrange(s1,s2,
@@ -942,10 +929,7 @@ ggarrange(s3,s4,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
 
-
-
-### GWR 
-
+### GWR
 
 ```{r}
 
@@ -966,7 +950,6 @@ gwr.model
 
 
 ```
-
 
 ```{r, fig.width=12, fig.height=12}
 
@@ -1011,7 +994,6 @@ ggplot(data = gwr_table1, aes(y = deprived, x = constituency_name, ymin = depriv
   facet_wrap(~county)
 
 ```
-
 
 ```{r, fig.height=6, fig.width=12}
 
@@ -1072,8 +1054,6 @@ ggarrange(k1,k2,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
 
-
-
 ```{r, fig.height=6, fig.width=12}
 # 
 # # LISA clusters for coefficients of change variables
@@ -1099,7 +1079,7 @@ ggarrange(k1,k2,
 # quadrant <- vector(mode="numeric",length=nrow(locali))
 # 
 # # centers the variable of interest around its mean
-# m.lowqual.change <- gwr_table1[,i] - mean(gwr_table1[,i])     
+# m.conchange <- gwr_table1[,i] - mean(gwr_table1[,i])     
 # 
 # # centers the local Moran's around the mean
 # m.local <- locali[,1] - mean(locali[,1])    
@@ -1109,10 +1089,10 @@ ggarrange(k1,k2,
 # 
 # # builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
 # # andplaces non-significant Moran in the category 0.
-# quadrant[m.lowqual.change >0 & m.local>0] <- 4  
-# quadrant[m.lowqual.change <0 & m.local<0] <- 1      
-# quadrant[m.lowqual.change <0 & m.local>0] <- 2
-# quadrant[m.lowqual.change >0 & m.local<0] <- 3
+# quadrant[m.conchange >0 & m.local>0] <- 4  
+# quadrant[m.conchange <0 & m.local<0] <- 1      
+# quadrant[m.conchange <0 & m.local>0] <- 2
+# quadrant[m.conchange >0 & m.local<0] <- 3
 # quadrant[locali[,5]>signif] <- 0   
 # 
 # # plot in r
@@ -1128,8 +1108,7 @@ ggarrange(k1,k2,
 
 ```
 
-### PCA 
-
+### PCA
 
 ```{r}
 vars2 <- all_elections_polygons2 %>% 
@@ -1173,7 +1152,6 @@ colnames(table_pca) <- c("Coefficient","Variable")
 
 ```
 
-
 ### GWR PCA
 
 ```{r}
@@ -1214,7 +1192,6 @@ gwr_pca_table <- as.data.frame(cbind(coef_over65_gwrpca, coef_deprived_gwrpca)) 
 
 ```
 
-
 ```{r, fig.height=6, fig.width=12}
 
 zz1 <- ggplot(gwr_pca_table) + 
@@ -1235,7 +1212,6 @@ ggarrange(zz1,zz2,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 
 ```
-
 
 ```{r, fig.height=6, fig.width=12}
 # 
@@ -1259,7 +1235,7 @@ ggarrange(zz1,zz2,
 # quadrant <- vector(mode="numeric",length=nrow(locali))
 # 
 # # centers the variable of interest around its mean
-# m.lowqual.change <- gwr_pca_table[,i] - mean(gwr_pca_table[,i])     
+# m.conchange <- gwr_pca_table[,i] - mean(gwr_pca_table[,i])     
 # 
 # # centers the local Moran's around the mean
 # m.local <- locali[,1] - mean(locali[,1])    
@@ -1269,10 +1245,10 @@ ggarrange(zz1,zz2,
 # 
 # # builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
 # # andplaces non-significant Moran in the category 0.
-# quadrant[m.lowqual.change >0 & m.local>0] <- 4  
-# quadrant[m.lowqual.change <0 & m.local<0] <- 1      
-# quadrant[m.lowqual.change <0 & m.local>0] <- 2
-# quadrant[m.lowqual.change >0 & m.local<0] <- 3
+# quadrant[m.conchange >0 & m.local>0] <- 4  
+# quadrant[m.conchange <0 & m.local<0] <- 1      
+# quadrant[m.conchange <0 & m.local>0] <- 2
+# quadrant[m.conchange >0 & m.local<0] <- 3
 # quadrant[locali[,5]>signif] <- 0   
 # 
 # # plot in r
@@ -1288,9 +1264,8 @@ ggarrange(zz1,zz2,
 
 ```
 
-
-
 ### GWR GWPCA
+
 ```{r}
 # first, perform the GWPCA
 
@@ -1352,7 +1327,6 @@ gwr_gwpca_table <- as.data.frame(cbind(coef_over65_gwpca, coef_deprived_gwpca)) 
 
 ```
 
-
 ```{r, fig.height=6, fig.width=12}
 
 yy1 <- ggplot(gwr_gwpca_table) + 
@@ -1373,7 +1347,6 @@ ggarrange(yy1,yy2,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 
 ```
-
 
 ```{r, fig.height=6, fig.width=12}
 # 
@@ -1397,7 +1370,7 @@ ggarrange(yy1,yy2,
 # quadrant <- vector(mode="numeric",length=nrow(locali))
 # 
 # # centers the variable of interest around its mean
-# m.lowqual.change <- gwr_gwpca_table[,i] - mean(gwr_gwpca_table[,i])     
+# m.conchange <- gwr_gwpca_table[,i] - mean(gwr_gwpca_table[,i])     
 # 
 # # centers the local Moran's around the mean
 # m.local <- locali[,1] - mean(locali[,1])    
@@ -1407,10 +1380,10 @@ ggarrange(yy1,yy2,
 # 
 # # builds a data quadrant, define the high-high, low-low, low-high and high-low categories,
 # # andplaces non-significant Moran in the category 0.
-# quadrant[m.lowqual.change >0 & m.local>0] <- 4  
-# quadrant[m.lowqual.change <0 & m.local<0] <- 1      
-# quadrant[m.lowqual.change <0 & m.local>0] <- 2
-# quadrant[m.lowqual.change >0 & m.local<0] <- 3
+# quadrant[m.conchange >0 & m.local>0] <- 4  
+# quadrant[m.conchange <0 & m.local<0] <- 1      
+# quadrant[m.conchange <0 & m.local>0] <- 2
+# quadrant[m.conchange >0 & m.local<0] <- 3
 # quadrant[locali[,5]>signif] <- 0   
 # 
 # # plot in r
@@ -1427,7 +1400,8 @@ ggarrange(yy1,yy2,
 ```
 
 ### Are Residuals Spatially Correlated?
-### Maps of Residuals from OLS and GAM with CAR models
+
+#### Maps of Residuals from OLS and GAM with CAR models
 
 ```{r, fig.height=6, fig.width=6}
 
@@ -1442,7 +1416,6 @@ m1 <- ggplot(mod1_resids_df) +
                        name= "OLS Residuals")         
 m1
 ```
-
 
 ```{r, fig.height=12, fig.width=12}
 
@@ -1511,7 +1484,50 @@ ggarrange(m3.1,m3.2,m4.1,m4.2,m5.1,m5.2,
 
 ```
 
-GAM with CAR: county level Over 65
+
+#### Residuals on LISA for the various models
+
+OLS 
+
+```{r}
+do.lisa(mod1.1_resids)
+```
+
+LME 
+
+```{r}
+do.lisa(residuals(model2.2))
+```
+
+GAM with CAR: county level Over 65 
+
+```{r}
+do.lisa(mod3.1_resids)
+```
+
+
+GAM with CAR: county level Deprived 
+
+```{r}
+do.lisa(mod3.2_resids)
+#do.lisa(mod4.1_resids)
+#do.lisa(mod4.2_resids)
+```
+
+GAM with CAR: region level Over 65 
+
+```{r}
+do.lisa(mod5.1_resids)
+```
+
+GAM with CAR: region level Deprived 
+
+```{r}
+do.lisa(mod5.2_resids)
+```
+
+
+GAM with CAR: county level Over 65 
 
 ```{r}
 all_elections_polygons_simp_table <- as.data.frame(all_elections_polygons_simp) %>% 
@@ -1576,6 +1592,151 @@ test1 <- moran.test(model1$residuals,weights_for_mods,zero.policy = TRUE)
 test1$estimate
 test1$p.value
 ```
+
+
+
+## Experiments with removing London
+##### seems to get rid of NaN for over65 but not for deprived...
+#### GAM with CAR: county level
+
+##### Over 65
+
+```{r}
+
+# re-read data before manipulating it
+counties <- readRDS(here("data", "counties.rds")) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county))
+# df with simplified county sf polygons for making maps
+counties_simp <-readRDS(here("data","counties_simp.rds")) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county))
+# weighted means for variables at county level, weights by size of electorate
+wmeans <- readRDS(here("data","wmeans.RDS")) %>% 
+  subset(county != "Isle of Wight")
+
+# make adjacency list for counties
+nlist <- counties %>% filter(county!="London") %>% st_touches()
+names(nlist) <- counties$county[-30]
+counties <- counties[-30,]
+counties$county <- factor(counties$county)
+wmeans <- wmeans[-30,]
+all_elections_polygonsnl <-all_elections_polygons %>% filter(region!="London")
+# Isle of Wight[26] is island county. Make it adjacent to West Sussex[51] and Hampshire[22]
+# nlist[51]$`West Sussex` <- c(16,22,26,46)
+# nlist[22]$Hampshire <- c(3,13,26,46,51,53)
+# nlist[26]$`Isle of Wight` <- c(22,51)
+```
+
+```{r}
+
+# suffix nl to objects will indicate not London...
+
+model3.1nl <- gam(con_change1 ~ over65 + deprived + 
+                 s(county,bs='mrf',xt=list(nb=nlist)) +
+                 s(county,bs='mrf',xt=list(nb=nlist), 
+                   by=over65,k=2),
+               data=all_elections_polygonsnl, family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model3.1nl)
+county_extract1nl <- tibble(over65=rep(1,51), 
+                          deprived=rep(1,51),
+                          county=levels(counties$county),
+                         `county:over65`=levels(counties$county)) 
+# df for holding results with simplified county boundaries for plotting
+counties_simp1nl <- counties_simp[-30,] %>%
+  mutate(agamma_i = predict(model3.1nl, newdata = county_extract1nl))
+
+counties_simp1nl <- counties_simp1nl %>% 
+  mutate(gamma_i = predict(model3.1nl,  newdata = county_extract1nl, type='terms')[,4], 
+         rand_slope_over65 = (gamma_i / wmeans$over65), 
+         fix_slope_over65 = rep(model3.1$coefficients[2]), 
+         total_slope_over65 = rand_slope_over65 + fix_slope_over65)
+a3.1nl <- ggplot(counties_simp1nl,aes(fill=agamma_i)) + 
+  geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(name=expression(alpha+gamma[i]),direction=1)
+b3.1nl <- ggplot(counties_simp1nl,aes(fill=rand_slope_over65)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(type='div',
+                       name=expression(gamma[over65]))
+c3.1nl <- ggplot(counties_simp1nl,aes(fill=fix_slope_over65)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Over 65") + 
+  labs(title = "Random Slope")
+d3.1nl <- ggplot(counties_simp1nl,aes(fill=total_slope_over65)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = mean(counties_simp1nl$total_slope_over65),
+                       name= "Over 65") + 
+  labs(title = "Fixed + Random Slope")
+
+a3.1nl
+b3.1nl
+c3.1nl
+d3.1nl
+```
+
+
+```{r}
+model3.2nl <- gam(con_change1 ~ over65 + deprived + 
+                 s(county,bs='mrf',xt=list(nb=nlist)) +
+                 s(county,bs='mrf',xt=list(nb=nlist), 
+                   by=deprived,k=2),
+               data=all_elections_polygonsnl, family=gaussian, 
+               weight=total_vote_19, method='REML')
+summary(model3.2nl)
+county_extract2nl <- tibble(over65=rep(1,51), 
+                          deprived=rep(1,51),
+                          county=levels(counties$county),
+                         `county:deprived`=levels(counties$county)) 
+# df for holding results with simplified county boundaries for plotting
+counties_simp2nl <- counties_simp[-30,] %>%
+  mutate(agamma_i = predict(model3.2nl, newdata = county_extract1nl))
+
+counties_simp2nl <- counties_simp2nl %>% 
+  mutate(gamma_i = predict(model3.2nl,  newdata = county_extract2nl, type='terms')[,4], 
+         rand_slope_deprived = (gamma_i / wmeans$deprived), 
+         fix_slope_deprived = rep(model3.1$coefficients[2]), 
+         total_slope_deprived = rand_slope_deprived + fix_slope_deprived)
+a3.2nl <- ggplot(counties_simp2nl,aes(fill=agamma_i)) + 
+  geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(name=expression(alpha+gamma[i]),direction=1)
+b3.2nl <- ggplot(counties_simp2nl,aes(fill=rand_slope_deprived)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_distiller(type='div',
+                       name=expression(gamma[deprived]))
+c3.2nl <- ggplot(counties_simp2nl,aes(fill=fix_slope_deprived)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = 0,
+                       name= "Deprived") + 
+  labs(title = "Random Slope")
+d3.2nl <- ggplot(counties_simp2nl,aes(fill=total_slope_deprived)) + geom_sf(lwd=.25, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Vik', mid = mean(counties_simp2nl$total_slope_deprived),
+                       name= "Deprived") + 
+  labs(title = "Fixed + Random Slope")
+
+a3.2nl
+b3.2nl
+c3.2nl
+d3.2nl
+```
+
+## LME without correlation, then use ANOVA... 
+
+##### model2.2a <- lmer(con_change1 ~ 1 + over65 + deprived + (over65 + deprived||county), data=all_elections_polygons) 
+
+### Linear Mixed Model - Random Intercept and Slope by county
+
+```{r, fig.width=4, fig.height=4}
+model2.2a <- lmer(con_change1 ~ 1 + over65 + deprived + (over65 + deprived||county), 
+               data=all_elections_polygons)
+summary(model2.2a)
+
+anova(model2.2, model2.2a)
+#the original, model2.2, without removing correlation, is a better fit model
+
+```
+
+
+
+
+
+
 
 
 
