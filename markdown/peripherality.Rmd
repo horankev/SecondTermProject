@@ -68,10 +68,11 @@ df <- all_elections %>%
          log_density = log(population_density),
          born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
          density = population_density, 
-         con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0))) %>% 
+         con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", "Yes", "No"))) %>% 
   subset(county != "Isle of Wight") %>% 
   mutate(county = factor(county)) %>% 
   st_drop_geometry()
+df$con_flip <- factor(df$con_flip, levels=c("Yes","No"))
 
 # df with detailed constituency sf polygons for contiguity computations
 polygons <- constituency_polygons %>% 
@@ -91,7 +92,7 @@ wmeans <- readRDS(here("data","wmeans.RDS"))
 ```
 
 
-```{r}
+```{r, fig.width=12, fig.height=8}
 ggplot(df)+geom_histogram(aes(x=log(density)), colour="darkred", fill="darkblue", show.legend = FALSE) + 
   labs(title = "Histogram Of Log Population Density In 571 Constituencies") + 
   theme_bw()
@@ -121,12 +122,19 @@ bb <- ggplot(df)+geom_sf(aes(fill=density_categs),lwd=0.1, ) +
 
 bb1 <- ggplot(df)+geom_sf(aes(fill=density_categs,colour=con_flip),lwd=0.4, ) +
   scale_fill_discrete_sequential(palette = 'YlGnBu',name="Density Categories") + 
-  scale_colour_manual(values=c("grey","red")) +
+  scale_colour_manual(values=c("red","grey")) +
   labs(title = "Log Density", 
        subtitle = "Per Constituency")
 
 bb + bb1
 ```
+
+```{r, fig.width=10, fig.height=10}
+tb <- table(df$density_categs,df$con_flip)
+tb1 <- round(prop.table(tb, margin=1), digits=2)
+kable(tb1, table.attr = "style='width:40%;'" ) %>% kable_classic(full_width = T, position = "center", )
+```
+
 
 ```{r}
 df1 <- df %>% 
