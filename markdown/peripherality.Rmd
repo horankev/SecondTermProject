@@ -96,14 +96,15 @@ ggplot(df)+geom_histogram(aes(x=log(density)), colour="darkred", fill="darkblue"
   labs(title = "Histogram Of Log Population Density In 571 Constituencies") + 
   theme_bw()
 ggplot(df)+geom_sf(aes(fill=log(density)),lwd=0.1) +
-  scale_fill_continuous_sequential(palette = 'YlGnBu',name="Density")
+  scale_fill_continuous_sequential(palette = 'YlGnBu',name="Log Density")
 
 # df$density_categs <- cut2(df$density,g=3)
 df$density_categs <- cut(log(df$density), breaks = c(-2,0,1,2,4,5))
 
 levels(df$density_categs) <- c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity")
 
-ggplot(df)+geom_sf(aes(fill=density_categs),lwd=0.1, )
+ggplot(df)+geom_sf(aes(fill=density_categs),lwd=0.1, ) +
+  scale_fill_discrete_sequential(palette = 'YlGnBu',name="Density Categories")
 ```
 
 ```{r}
