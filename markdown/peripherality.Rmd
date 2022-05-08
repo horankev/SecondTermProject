@@ -146,12 +146,6 @@ summary(model1.3)
 
 ```
 
-```{r}
-
-model2.1 <- lmer(con_change1 ~ 1 + over65 + deprived+ (over65+deprived|density_categs), 
-               data=df1)
-summary(model2.1)
-```
 
 ## Total 2019 Votes 
 
@@ -524,4 +518,108 @@ ggarrange(con_age_change, lab_age_change, ld_age_change,
           ncol=3, nrow=1, common.legend = FALSE, legend="right")
 ggarrange(con_dep_change, lab_dep_change, ld_dep_change,
           ncol=3, nrow=1, common.legend = FALSE, legend="right")
+
+```
+ 
+ 
+## Focusing just on Conservative change in vote, not other parties 
+
+```{r, fig.width=12,fig.height=6}
+
+ggarrange(con_age_change, con_dep_change,
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+```
+
+### LMER 
+
+```{r, fig.width=12,fig.height=6}
+
+model2.1 <- lmer(con_change1 ~ 1 + over65 + deprived+ (over65+deprived|density_categs), 
+               data=df1)
+summary(model2.1)
+
+# fixed effects
+tab2.1fix <- as.data.frame(fixef(model2.1))[2:3,]
+cifix <- as.data.frame(confint(model2.1, method="Wald"))[9:10,]
+tab2.1fix <- cbind(tab2.1fix, cifix)
+colnames(tab2.1fix) <- c("condval","conf_min","conf_max")
+tab2.1fix$grp <- c("over65","deprived")
+tab2.1fix$grp <- factor(tab2.1fix$grp, levels = c("over65","deprived"))
+
+
+pf <- ggplot(data = tab2.1fix, aes(x=grp, y = condval, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=grp), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(aes(x=grp, y=condval)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: change in vote", 
+       subtitle = "Fixed effects", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Variable") + 
+  ylim(-1,2) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+pf
+
+
+# random effects
+tab2.1 <- as.data.frame(ranef(model2.1))
+tab2.1a <- tab2.1 %>% filter(grp == "LowDensity") %>% 
+  mutate(se = condsd/sqrt(36), # the df is long, with three variables
+         CI = 1.96*se, 
+         conf_min = condval - CI,
+         conf_max = condval + CI)
+tab2.1b <- tab2.1 %>% filter(grp == "LowMidDensity") %>% 
+  mutate(se = condsd/sqrt(100), # the df is long, with three variables
+         CI = 1.96*se, 
+         conf_min = condval - CI,
+         conf_max = condval + CI)
+tab2.1c <- tab2.1 %>% filter(grp == "MidDensity") %>% 
+  mutate(se = condsd/sqrt(111), # the df is long, with three variables
+         CI = 1.96*se, 
+         conf_min = condval - CI,
+         conf_max = condval + CI)
+tab2.1d <- tab2.1 %>% filter(grp == "HighMidDensity") %>% 
+  mutate(se = condsd/sqrt(275), # the df is long, with three variables
+         CI = 1.96*se, 
+         conf_min = condval - CI,
+         conf_max = condval + CI)
+tab2.1e <- tab2.1 %>% filter(grp == "HighDensity") %>% 
+  mutate(se = condsd/sqrt(49), # the df is long, with three variables
+         CI = 1.96*se, 
+         conf_min = condval - CI,
+         conf_max = condval + CI)
+
+res1 <- rbind(tab2.1a[2,],tab2.1b[2,],tab2.1c[2,],tab2.1d[2,],tab2.1e[2,])
+res2 <- rbind(tab2.1a[3,],tab2.1b[3,],tab2.1c[3,],tab2.1d[3,],tab2.1e[3,])
+
+p1 <- ggplot(data = res1, aes(x = grp, y = condval, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=grp), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: change in vote", 
+       subtitle = "Random effects: over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") + 
+  ylim(-1,1) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+p2 <- ggplot(data = res2, aes(x = grp, y = condval, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=grp), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: change in vote", 
+       subtitle = "Random effects: deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") + 
+  ylim(-1,1) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+ggarrange(p1, p2,
+          ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
