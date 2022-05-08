@@ -1,0 +1,526 @@
+---
+title: "peripherality"
+output: html_document
+date: '2022-05-08'
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(sf)
+library(parlitools)
+library(here)
+library(ggfortify)
+library(patchwork)
+library(stringr)
+library(here)
+library(GGally)
+library(spatialreg)
+library(spdep)
+library(broom)
+library(spgwr)
+library(gridExtra)
+library(grid)
+library(Hmisc)
+library(MASS)
+library(stargazer)
+library(car)
+library(factoextra)
+library(GWmodel)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(ggpubr)
+library(RColorBrewer)
+library(tidyverse)
+library(kableExtra)
+library(mgcv)
+library(colorspace)
+library(gclus)
+library(corrplot)
+library(lme4)
+library(ggplot2); theme_set(theme_dark())
+rm(list=ls())
+here()
+```
+
+
+```{r}
+all_elections <- readRDS(here("data", "all_elections.rds"))
+constituency_polygons <- readRDS(here("data", "constituency_polygons.rds"))
+```
+
+```{r}
+# dfs WITHOUT Isle of Wight
+df <- all_elections %>% 
+  mutate(con_change1 = 100*(con_19 - con_17) / (100 - con_17),
+         lab_change1 = 100*(lab_19 - lab_17) / (100 - lab_17),
+         ld_change1 = 100*(ld_19 - ld_17) / (100 - ld_17)) %>% 
+  filter(!is.na(con_change1)) %>% 
+  filter(country != "Scotland") %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         log_density = log(population_density),
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density, 
+         con_flip = ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0)) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county)) %>% 
+  st_drop_geometry()
+
+# df with detailed constituency sf polygons for contiguity computations
+polygons <- constituency_polygons %>% 
+  st_simplify(dTolerance = 1000) %>% 
+  st_as_sf()
+
+df <- left_join(df,polygons,by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf()
+
+# df with detailed county sf polygons for contiguity computations
+counties <- readRDS(here("data", "counties_simp.rds")) %>% 
+  mutate(county = factor(county))
+
+# weighted means for variables at county level, weights by size of electorate
+wmeans <- readRDS(here("data","wmeans.RDS"))
+
+```
+
+
+```{r}
+ggplot(df)+geom_histogram(aes(x=log(density)), colour="darkred", fill="darkblue", show.legend = FALSE) + 
+  labs(title = "Histogram Of Log Poopulation Density In 571 Constituencies") + 
+  theme_bw()
+ggplot(df)+geom_sf(aes(fill=log(density)),lwd=0.1) +
+  scale_fill_continuous_sequential(palette = 'YlGnBu',name="Density")
+
+# df$density_categs <- cut2(df$density,g=3)
+df$density_categs <- cut(log(df$density), breaks = c(-2,0,1,2,4,5))
+
+levels(df$density_categs) <- c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity")
+
+ggplot(df)+geom_sf(aes(fill=density_categs),lwd=0.1, )
+```
+
+```{r}
+df1 <- df %>% 
+  select(constituency_name,con_19,lab_19,ld_19,con_change1,lab_change1,ld_change1,over65,deprived,density_categs,total_vote_19,geometry)
+
+# one hot encoding
+library(data.table)
+library(mltools)
+temp <- as.data.table(df1$density_categs)
+temp1 <- one_hot(temp)
+colnames(temp1) <- c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity")
+df1 <- df1 %>% 
+  cbind(temp1)
+
+
+```
+
+```{r}
+
+model1.1 <- lm(con_change1 ~ over65 + deprived, data=df1)
+summary(model1.1)
+
+```
+
+```{r}
+
+model1.2 <- lm(con_change1 ~ over65 + deprived + over65:density_categs + deprived:density_categs, data=df1)
+summary(model1.2)
+
+```
+
+```{r}
+
+model1.3 <- lm(con_change1 ~ over65 + deprived + 
+               over65*LowMidDensity + over65*MidDensity + over65*HighMidDensity + over65*HighDensity +
+               deprived*LowMidDensity + deprived*MidDensity + deprived*HighMidDensity + deprived*HighDensity, data=df1)
+summary(model1.3)
+
+```
+
+```{r}
+
+model2.1 <- lmer(con_change1 ~ 1 + over65 + deprived+ (over65+deprived|density_categs), 
+               data=df1)
+summary(model2.1)
+```
+
+## Total 2019 Votes 
+
+```{r}
+df_a <- df1 %>% filter(density_categs=="LowDensity")
+df_b <- df1 %>% filter(density_categs=="LowMidDensity")
+df_c <- df1 %>% filter(density_categs=="MidDensity")
+df_d <- df1 %>% filter(density_categs=="HighMidDensity")
+df_e <- df1 %>% filter(density_categs=="HighDensity")
+
+model3.1a <- lm(con_19 ~ over65 + deprived, data=df_a)
+model3.1b <- lm(con_19 ~ over65 + deprived, data=df_b)
+model3.1c <- lm(con_19 ~ over65 + deprived, data=df_c)
+model3.1d <- lm(con_19 ~ over65 + deprived, data=df_d)
+model3.1e <- lm(con_19 ~ over65 + deprived, data=df_e)
+
+summary(model3.1a)
+summary(model3.1b)
+summary(model3.1c)
+summary(model3.1d)
+summary(model3.1e)
+
+res3.1a <- tidy(model3.1a) %>% 
+  mutate(dense = "LowDensity")
+res3.1b <- tidy(model3.1b) %>% 
+  mutate(dense = "LowMidDensity")
+res3.1c <- tidy(model3.1c) %>% 
+  mutate(dense = "MidDensity")
+res3.1d <- tidy(model3.1d) %>% 
+  mutate(dense = "HighMidDensity")
+res3.1e <- tidy(model3.1e) %>% 
+  mutate(dense = "HighDensity")
+
+res <- rbind(res3.1a,res3.1b,res3.1c,res3.1d,res3.1e) %>% 
+  mutate(conf_min = estimate - 1.96*std.error, 
+         conf_max = estimate + 1.96*std.error)
+res$dense <- factor(res$dense, levels = c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity"))
+
+con_age <- ggplot(data = res[c(2,5,8,11,14),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.5), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: total vote", 
+       subtitle = "over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") + 
+  ylim(-4,4) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+con_dep <- ggplot(data = res[c(3,6,9,12,15),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: total vote", 
+       subtitle = "deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping")  + 
+  ylim(-2,2) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+
+tab3.1 <- cbind(res3.1a[,2],res3.1b[,2],res3.1c[,2])
+colnames(tab3.1) <- c("a","b","c")
+
+
+```
+
+ 
+
+```{r}
+### Labour 2019
+model3.1a <- lm(lab_19 ~ over65 + deprived, data=df_a)
+model3.1b <- lm(lab_19 ~ over65 + deprived, data=df_b)
+model3.1c <- lm(lab_19 ~ over65 + deprived, data=df_c)
+model3.1d <- lm(lab_19 ~ over65 + deprived, data=df_d)
+
+
+res3.1a <- tidy(model3.1a) %>% 
+  mutate(dense = "LowDensity")
+res3.1b <- tidy(model3.1b) %>% 
+  mutate(dense = "LowMidDensity")
+res3.1c <- tidy(model3.1c) %>% 
+  mutate(dense = "MidDensity")
+res3.1d <- tidy(model3.1d) %>% 
+  mutate(dense = "HighMidDensity")
+res3.1e <- tidy(model3.1e) %>% 
+  mutate(dense = "HighDensity")
+
+res <- rbind(res3.1a,res3.1b,res3.1c,res3.1d,res3.1e) %>% 
+  mutate(conf_min = estimate - 1.96*std.error, 
+         conf_max = estimate + 1.96*std.error)
+res$dense <- factor(res$dense, levels = c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity"))
+
+lab_age <- ggplot(data = res[c(2,5,8,11,14),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LABOUR: total vote", 
+       subtitle = "over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") +  
+  ylim(-4,4) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+lab_dep <- ggplot(data = res[c(3,6,9,12,15),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LABOUR: total vote", 
+       subtitle = "deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping")  +  
+  ylim(-2,2) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+```
+
+ 
+
+```{r}
+### Liberal Democrat 2019
+model3.1a <- lm(ld_19 ~ over65 + deprived, data=df_a)
+model3.1b <- lm(ld_19 ~ over65 + deprived, data=df_b)
+model3.1c <- lm(ld_19 ~ over65 + deprived, data=df_c)
+model3.1d <- lm(ld_19 ~ over65 + deprived, data=df_d)
+model3.1e <- lm(ld_19 ~ over65 + deprived, data=df_e)
+
+
+res3.1a <- tidy(model3.1a) %>% 
+  mutate(dense = "LowDensity")
+res3.1b <- tidy(model3.1b) %>% 
+  mutate(dense = "LowMidDensity")
+res3.1c <- tidy(model3.1c) %>% 
+  mutate(dense = "MidDensity")
+res3.1d <- tidy(model3.1d) %>% 
+  mutate(dense = "HighMidDensity")
+res3.1e <- tidy(model3.1e) %>% 
+  mutate(dense = "HighDensity")
+
+res <- rbind(res3.1a,res3.1b,res3.1c,res3.1d,res3.1e) %>% 
+  mutate(conf_min = estimate - 1.96*std.error, 
+         conf_max = estimate + 1.96*std.error)
+res$dense <- factor(res$dense, levels = c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity"))
+
+ld_age <- ggplot(data = res[c(2,5,8,11,14),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LIBERAL DEMOCRATS: total vote", 
+       subtitle = "over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") +  
+  ylim(-4,4) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+ld_dep <- ggplot(data = res[c(3,6,9,12,15),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LIBERAL DEMOCRATS: total vote", 
+       subtitle = "deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping")  + 
+  ylim(-2,2) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+```
+
+```{r, fig.width=12,fig.height=6}
+# con_age + lab_age + ld_age
+# con_dep + lab_dep + ld_dep
+
+ggarrange(con_age, lab_age, ld_age,
+          ncol=3, nrow=1, common.legend = FALSE, legend="right")
+ggarrange(con_dep, lab_dep, ld_dep,
+          ncol=3, nrow=1, common.legend = FALSE, legend="right")
+```
+
+## Change 2019/17 Votes 
+
+
+```{r}
+df_a <- df1 %>% filter(density_categs=="LowDensity")
+df_b <- df1 %>% filter(density_categs=="LowMidDensity")
+df_c <- df1 %>% filter(density_categs=="MidDensity")
+df_d <- df1 %>% filter(density_categs=="HighMidDensity")
+df_e <- df1 %>% filter(density_categs=="HighDensity")
+
+model3.1a <- lm(con_change1 ~ over65 + deprived, data=df_a)
+model3.1b <- lm(con_change1 ~ over65 + deprived, data=df_b)
+model3.1c <- lm(con_change1 ~ over65 + deprived, data=df_c)
+model3.1d <- lm(con_change1 ~ over65 + deprived, data=df_d)
+model3.1e <- lm(con_change1 ~ over65 + deprived, data=df_e)
+
+summary(model3.1a)
+summary(model3.1b)
+summary(model3.1c)
+summary(model3.1d)
+summary(model3.1e)
+
+res3.1a <- tidy(model3.1a) %>% 
+  mutate(dense = "LowDensity")
+res3.1b <- tidy(model3.1b) %>% 
+  mutate(dense = "LowMidDensity")
+res3.1c <- tidy(model3.1c) %>% 
+  mutate(dense = "MidDensity")
+res3.1d <- tidy(model3.1d) %>% 
+  mutate(dense = "HighMidDensity")
+res3.1e <- tidy(model3.1e) %>% 
+  mutate(dense = "HighDensity")
+
+res <- rbind(res3.1a,res3.1b,res3.1c,res3.1d,res3.1e) %>% 
+  mutate(conf_min = estimate - 1.96*std.error, 
+         conf_max = estimate + 1.96*std.error)
+res$dense <- factor(res$dense, levels = c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity"))
+
+con_age_change <- ggplot(data = res[c(2,5,8,11,14),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: change in vote", 
+       subtitle = "over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") + 
+  ylim(-2,2) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+con_dep_change <- ggplot(data = res[c(3,6,9,12,15),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: change in vote", 
+       subtitle = "deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping")  + 
+  ylim(-2,3) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+
+tab3.1 <- cbind(res3.1a[,2],res3.1b[,2],res3.1c[,2])
+colnames(tab3.1) <- c("a","b","c")
+
+
+```
+
+ 
+
+```{r}
+### Labour 2019
+model3.1a <- lm(lab_change1 ~ over65 + deprived, data=df_a)
+model3.1b <- lm(lab_change1 ~ over65 + deprived, data=df_b)
+model3.1c <- lm(lab_change1 ~ over65 + deprived, data=df_c)
+model3.1d <- lm(lab_change1 ~ over65 + deprived, data=df_d)
+
+
+res3.1a <- tidy(model3.1a) %>% 
+  mutate(dense = "LowDensity")
+res3.1b <- tidy(model3.1b) %>% 
+  mutate(dense = "LowMidDensity")
+res3.1c <- tidy(model3.1c) %>% 
+  mutate(dense = "MidDensity")
+res3.1d <- tidy(model3.1d) %>% 
+  mutate(dense = "HighMidDensity")
+res3.1e <- tidy(model3.1e) %>% 
+  mutate(dense = "HighDensity")
+
+res <- rbind(res3.1a,res3.1b,res3.1c,res3.1d,res3.1e) %>% 
+  mutate(conf_min = estimate - 1.96*std.error, 
+         conf_max = estimate + 1.96*std.error)
+res$dense <- factor(res$dense, levels = c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity"))
+
+lab_age_change <- ggplot(data = res[c(2,5,8,11,14),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LABOUR: change in vote", 
+       subtitle = "over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") +  
+  ylim(-2,2) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+lab_dep_change <- ggplot(data = res[c(3,6,9,12,15),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LABOUR: change in vote", 
+       subtitle = "deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping")  +  
+  ylim(-2,3) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+```
+
+
+
+```{r}
+### Liberal Democrat 2019 
+model3.1a <- lm(ld_change1 ~ over65 + deprived, data=df_a)
+model3.1b <- lm(ld_change1 ~ over65 + deprived, data=df_b)
+model3.1c <- lm(ld_change1 ~ over65 + deprived, data=df_c)
+model3.1d <- lm(ld_change1 ~ over65 + deprived, data=df_d)
+model3.1e <- lm(ld_change1 ~ over65 + deprived, data=df_e)
+
+
+res3.1a <- tidy(model3.1a) %>% 
+  mutate(dense = "LowDensity")
+res3.1b <- tidy(model3.1b) %>% 
+  mutate(dense = "LowMidDensity")
+res3.1c <- tidy(model3.1c) %>% 
+  mutate(dense = "MidDensity")
+res3.1d <- tidy(model3.1d) %>% 
+  mutate(dense = "HighMidDensity")
+res3.1e <- tidy(model3.1e) %>% 
+  mutate(dense = "HighDensity")
+
+res <- rbind(res3.1a,res3.1b,res3.1c,res3.1d,res3.1e) %>% 
+  mutate(conf_min = estimate - 1.96*std.error, 
+         conf_max = estimate + 1.96*std.error)
+res$dense <- factor(res$dense, levels = c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity"))
+
+ld_age_change <- ggplot(data = res[c(2,5,8,11,14),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LIBERAL DEMOCRATS: change in vote", 
+       subtitle = "over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") +  
+  ylim(-2,2) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+ld_dep_change <- ggplot(data = res[c(3,6,9,12,15),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "LIBERAL DEMOCRATS: change in vote", 
+       subtitle = "deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping")  + 
+  ylim(-2,3) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+```
+
+```{r, fig.width=12,fig.height=6}
+
+ggarrange(con_age_change, lab_age_change, ld_age_change,
+          ncol=3, nrow=1, common.legend = FALSE, legend="right")
+ggarrange(con_dep_change, lab_dep_change, ld_dep_change,
+          ncol=3, nrow=1, common.legend = FALSE, legend="right")
+```
