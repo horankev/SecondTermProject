@@ -93,7 +93,7 @@ wmeans <- readRDS(here("data","wmeans.RDS"))
 
 ```{r}
 ggplot(df)+geom_histogram(aes(x=log(density)), colour="darkred", fill="darkblue", show.legend = FALSE) + 
-  labs(title = "Histogram Of Log Poopulation Density In 571 Constituencies") + 
+  labs(title = "Histogram Of Log Population Density In 571 Constituencies") + 
   theme_bw()
 ggplot(df)+geom_sf(aes(fill=log(density)),lwd=0.1) +
   scale_fill_continuous_sequential(palette = 'YlGnBu',name="Density")
