@@ -68,7 +68,7 @@ df <- all_elections %>%
          log_density = log(population_density),
          born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
          density = population_density, 
-         con_flip = ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0)) %>% 
+         con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", 1, 0))) %>% 
   subset(county != "Isle of Wight") %>% 
   mutate(county = factor(county)) %>% 
   st_drop_geometry()
@@ -95,16 +95,37 @@ wmeans <- readRDS(here("data","wmeans.RDS"))
 ggplot(df)+geom_histogram(aes(x=log(density)), colour="darkred", fill="darkblue", show.legend = FALSE) + 
   labs(title = "Histogram Of Log Population Density In 571 Constituencies") + 
   theme_bw()
-ggplot(df)+geom_sf(aes(fill=log(density)),lwd=0.1) +
-  scale_fill_continuous_sequential(palette = 'YlGnBu',name="Log Density")
+aa <- ggplot(df)+geom_sf(aes(fill=log(density)),lwd=0.1) +
+  scale_fill_continuous_sequential(palette = 'YlGnBu',name="Log Density") + 
+  labs(title = "Log Density", 
+       subtitle = "Per Constituency")
+aa1 <- ggplot(df) + 
+  geom_sf(aes(fill=con_change1), lwd=0.1, colour="black") +
+  scale_fill_continuous_diverging(palette = 'Blue_Red3', mid = 0, rev=TRUE) +
+  labs(title = "Dependent Variable Map", 
+       subtitle = "Percentage Change Per Constituency")
+aa + aa1
 
-# df$density_categs <- cut2(df$density,g=3)
 df$density_categs <- cut(log(df$density), breaks = c(-2,0,1,2,4,5))
 
 levels(df$density_categs) <- c("LowDensity","LowMidDensity","MidDensity","HighMidDensity","HighDensity")
 
-ggplot(df)+geom_sf(aes(fill=density_categs),lwd=0.1, ) +
-  scale_fill_discrete_sequential(palette = 'YlGnBu',name="Density Categories")
+```
+
+
+```{r, fig.width=12, fig.height=8}
+bb <- ggplot(df)+geom_sf(aes(fill=density_categs),lwd=0.1, ) +
+  scale_fill_discrete_sequential(palette = 'YlGnBu',name="Density Categories") + 
+  labs(title = "Log Density", 
+       subtitle = "Per Constituency")
+
+bb1 <- ggplot(df)+geom_sf(aes(fill=density_categs,colour=con_flip),lwd=0.4, ) +
+  scale_fill_discrete_sequential(palette = 'YlGnBu',name="Density Categories") + 
+  scale_colour_manual(values=c("grey","red")) +
+  labs(title = "Log Density", 
+       subtitle = "Per Constituency")
+
+bb + bb1
 ```
 
 ```{r}
