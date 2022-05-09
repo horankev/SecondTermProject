@@ -164,6 +164,19 @@ summary(model1.1)
 model1.2 <- lm(con_change1 ~ over65 + deprived + over65:density_categs + deprived:density_categs, data=df1)
 summary(model1.2)
 
+model1.4 <- lm(con_change1 ~ over65*density_categs + deprived*density_categs, data=df1)
+summary(model1.4)
+
+df2 <- df %>% 
+  select(con_change1,over65,deprived,density,density_categs) %>% 
+  mutate(density=log(density)) %>% 
+  st_drop_geometry()
+ggpairs(df2)+theme_classic()
+
+ggplot(df2)+geom_smooth(aes(x=deprived,y=con_change1,colour=density_categs))+theme_classic()
+ggplot(df2)+geom_point(aes(x=deprived,y=log(density),colour=con_change1))+theme_classic()+scale_color_continuous_diverging(rev=TRUE)
+
+
 ```
 
 ```{r}
@@ -554,6 +567,31 @@ ggarrange(con_dep_change, lab_dep_change, ld_dep_change,
 ## Focusing just on Conservative change in vote, not other parties 
 
 ```{r, fig.width=12,fig.height=6}
+con_age_change <- ggplot(data = res[c(2,5,8,11,14),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: change in vote", 
+       subtitle = "over65", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping") + 
+  ylim(-2,3) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
+
+con_dep_change <- ggplot(data = res[c(3,6,9,12,15),], aes(x = dense, y = estimate, ymin = conf_min, ymax = conf_max)) +
+  geom_errorbar(aes(colour=dense), position = position_dodge(width = 0.2), width = 0.1, show.legend = FALSE, lwd=1) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  theme_classic() + 
+  labs(title = "CONSERVATIVE: change in vote", 
+       subtitle = "deprived", 
+       colour = "Density Grouping") +
+  ylab("Coefficient") + 
+  xlab("Grouping")  + 
+  ylim(-2,3) + 
+  geom_hline(yintercept = 0, colour="orange") + 
+  theme(axis.text.x=element_text(face="bold", size=12, angle = 30, hjust = 1))
 
 ggarrange(con_age_change, con_dep_change,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
@@ -652,3 +690,10 @@ p2 <- ggplot(data = res2, aes(x = grp, y = condval, ymin = conf_min, ymax = conf
 ggarrange(p1, p2,
           ncol=2, nrow=1, common.legend = FALSE, legend="right")
 ```
+
+```{r}
+model2.1 <- lmer(con_change1 ~ 1 + over65 + deprived+ (over65+deprived|density_categs), 
+               data=df1)
+summary(model2.1)
+```
+
