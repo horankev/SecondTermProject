@@ -545,7 +545,7 @@ ggplot() + geom_sf(data=df4,aes(fill=model10$residuals), lwd=0.1) +
 
 summary(model10)
 plot(model10,pages=1,residuals=TRUE,all.terms=TRUE,shade=TRUE,shade.col=4)
-
+abline(h=0)
 
 ```
 
@@ -573,11 +573,14 @@ depscale <- tibble(value = seq(min(df$deprived),max(df$deprived),length.out=300)
 ppp <- predict(model11,df)
 df$prediction <- ppp
 
-ggplot(df)+geom_line((aes(x=deprived,y=con_change1)))+facet_wrap(~maxurban)
+ggplot(df)+geom_line((aes(x=deprived,y=con_change1)))+facet_wrap(~maxurban) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5)
 
-ggplot(df)+geom_line((aes(x=deprived,y=df$prediction)))+facet_wrap(~maxurban)
+ggplot(df)+geom_line((aes(x=deprived,y=df$prediction)))+facet_wrap(~maxurban) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5)
 
-ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm",formula=y ~ poly(x, 3, raw=TRUE))
+ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm",formula=y ~ poly(x, 3, raw=TRUE)) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5)
 
 ```
 
@@ -751,37 +754,73 @@ sgp1 <- ggplot(df13.1 %>% filter(maxurban=="Small Town"),aes(x=deprived,y=p.fit,
   geom_point(colour="darkblue") +
   labs(title="Small Town") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 sgp2 <- ggplot(df13.1 %>% filter(maxurban=="Medium Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Medium Town") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 sgp3 <- ggplot(df13.1 %>% filter(maxurban=="Large Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Large Town") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 sgp4 <- ggplot(df13.1 %>% filter(maxurban=="Other City"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Other City") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 sgp5 <- ggplot(df13.1 %>% filter(maxurban=="Core City (outside London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Core City (outside London)") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 sgp6 <- ggplot(df13.1 %>% filter(maxurban=="Core City (London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Core City (London)") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 
 (sgp1+sgp2+sgp3) / (sgp4+sgp5+sgp6)
 
@@ -798,42 +837,79 @@ sgp6 <- ggplot(df13.1 %>% filter(maxurban=="Core City (London)"),aes(x=deprived,
 df13.2 <- cbind(df,p$fit,upr,lwr) %>% 
   filter(upr < 0 | lwr > 0)
 
+
 ssgp1 <- ggplot(df13.2 %>% filter(maxurban=="Small Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Small Town") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 ssgp2 <- ggplot(df13.2 %>% filter(maxurban=="Medium Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Medium Town") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 ssgp3 <- ggplot(df13.2 %>% filter(maxurban=="Large Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Large Town") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 ssgp4 <- ggplot(df13.2 %>% filter(maxurban=="Other City"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Other City") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 ssgp5 <- ggplot(df13.2 %>% filter(maxurban=="Core City (outside London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Core City (outside London)") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 ssgp6 <- ggplot(df13.2 %>% filter(maxurban=="Core City (London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
   geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
   geom_point(colour="darkblue") +
   labs(title="Core City (London)") + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  ylim(-20,25)
+  ylim(-20,25) + 
+  xlim(0,45) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
+
 
 (ssgp1+ssgp2+ssgp3) / (ssgp4+ssgp5+ssgp6)
 ```
