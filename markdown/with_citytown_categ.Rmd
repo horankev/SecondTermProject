@@ -1,0 +1,849 @@
+---
+title: "with_citytown_categ"
+output: html_document
+date: '2022-05-14'
+---
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(sf)
+library(parlitools)
+library(here)
+library(ggfortify)
+library(patchwork)
+library(stringr)
+library(GGally)
+library(spatialreg)
+library(spdep)
+library(broom)
+library(spgwr)
+library(gridExtra)
+library(grid)
+library(Hmisc)
+library(MASS)
+library(stargazer)
+library(car)
+library(factoextra)
+library(GWmodel)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(ggpubr)
+library(RColorBrewer)
+library(kableExtra)
+library(mgcv)
+library(colorspace)
+library(gclus)
+library(corrplot)
+library(lme4)
+library(here)
+
+library(ggplot2); theme_set(theme_dark())
+library(tidyverse)
+
+
+rm(list=ls())
+here::here()
+
+theme_set(theme(axis.title.x = element_text(size=10),
+                axis.title.y = element_text(size=10),
+                axis.text.x = element_text(size=10),
+                axis.text.y = element_text(size=10),
+                legend.text = element_text(size=10)))
+```
+
+
+```{r}
+all_elections <- readRDS(here::here("data", "all_elections.rds"))
+constituency_polygons <- readRDS(here::here("data", "constituency_polygons.rds"))
+# citytown <- read.csv("https://researchbriefings.files.parliament.uk/documents/CBP-8322/pcon-classification-csv.csv") %>% 
+#   mutate(classification = replace(classification, classification == "Village or Smaller","Village or smaller")) %>% 
+#   select(-population) %>% 
+#   pivot_wider(names_from = classification, 
+#               values_from = percent_of_constituency, values_fill = 0) %>% 
+#   mutate(maxurban = pmap(across(3:9), ~ names(c(...)[which.max(c(...))])),
+#          maxurban = factor(maxurban, levels = c("Village or smaller", 
+#                                                 "Small Town", 
+#                                                 "Medium Town", 
+#                                                 "Large Town",
+#                                                 "Other City", 
+#                                                 "Core City (outside London)", 
+#                                                 "Core City (London)")))
+# saveRDS(citytown, here::here("data","citytown.rds"))
+citytown <- readRDS(here::here("data","citytown.rds"))
+```
+
+```{r}
+# dfs WITHOUT Isle of Wight
+df <- all_elections %>% 
+  mutate(con_change1 = 100*(con_19 - con_17) / (100 - con_17),
+         lab_change1 = 100*(lab_19 - lab_17) / (100 - lab_17),
+         ld_change1 = 100*(ld_19 - ld_17) / (100 - ld_17)) %>% 
+  filter(!is.na(con_change1)) %>% 
+  filter(country != "Scotland") %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         log_density = log(population_density),
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density, 
+         con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", "Yes", "No"))) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county)) %>% 
+  st_drop_geometry()
+df$con_flip <- factor(df$con_flip, levels=c("Yes","No"))
+
+# df with detailed constituency sf polygons for contiguity computations
+polygons <- constituency_polygons %>% 
+  st_simplify(dTolerance = 1000) %>% 
+  st_as_sf()
+
+df <- left_join(df,
+                citytown %>% select(-constituency_name),
+                by = c("ons_const_id" = "constituency_code")) %>% 
+  left_join(polygons,by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf()
+
+# df with detailed county sf polygons for contiguity computations
+counties <- readRDS(here::here("data", "counties_simp.rds")) %>% 
+  mutate(county = factor(county))
+
+# weighted means for variables at county level, weights by size of electorate
+wmeans <- readRDS(here::here("data","wmeans.RDS"))
+
+```
+
+```{r, fig.width=12, fig.height=6}
+map1 <- ggplot(df) + geom_sf(aes(fill=maxurban), lwd=0.1) + 
+  scale_fill_discrete_sequential(palette="Inferno", rev=TRUE)
+
+dfpolyg <- left_join(df %>% st_drop_geometry(),all_elections, by="constituency_name") %>% 
+  st_as_sf()
+map2 <- ggplot(dfpolyg) + geom_sf(aes(fill=maxurban), lwd=0.1) + 
+  scale_fill_discrete_sequential(palette="Inferno", rev=TRUE)
+
+ggarrange(map1,map2,
+          ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+```
+
+```{r, fig.width=12, fig.height=6}
+bar1 <- ggplot(df) + 
+  geom_bar(aes(x=maxurban, fill=con_flip), lwd=0.1, position = "fill") + 
+  scale_fill_manual(values = c("darkblue","grey")) + 
+  coord_flip() + 
+  labs(title="Percentage Constituencies Flipped")
+    
+
+bar2 <- ggplot(df) + 
+  geom_bar(aes(x=maxurban, fill=con_flip), lwd=0.1) + 
+  scale_fill_manual(values = c("darkblue","grey")) + 
+  coord_flip() + 
+  labs(title="Number of Constituencies Flipped")
+
+ggarrange(bar1,bar2,
+          ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+```
+
+```{r, fig.width=12, fig.height=6}
+p1 <- ggplot(df) + geom_point(aes(x=deprived,y=con_19,colour=maxurban)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+
+p2 <- ggplot(df) + geom_point(aes(x=deprived,y=con_change1,colour=maxurban)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) + 
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+
+p3 <- ggplot(df) + geom_point(aes(x=over65,y=con_19,colour=maxurban)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
+  annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+
+p4 <- ggplot(df) + geom_point(aes(x=over65,y=con_change1,colour=maxurban)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
+  annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+
+ggarrange(p1,p2,
+          ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+ggarrange(p3,p4,
+          ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+```
+
+
+```{r, fig.width=12, fig.height=6}
+p5 <- ggplot(df) + geom_smooth(aes(x=deprived,y=con_19,colour=maxurban), se = FALSE) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+
+p6 <- ggplot(df) + geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), se = FALSE) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) + 
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+
+p7 <- ggplot(df) + geom_smooth(aes(x=over65,y=con_19,colour=maxurban), se = FALSE) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
+  annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+
+p8 <- ggplot(df) + geom_smooth(aes(x=over65,y=con_change1,colour=maxurban), se = FALSE) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
+  annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
+  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+
+ggarrange(p5,p6,
+          ncol=2, nrow=1, common.legend = TRUE, legend="right")
+ggarrange(p7,p8,
+          ncol=2, nrow=1, common.legend = TRUE, legend="right")
+```
+
+```{r}
+# with values between 0 and 1 for each category for each constituency,
+# leaving out one of the factors, Village or Smaller (rural), to avoid NAs
+df1 <- df %>% 
+  select(con_change1,deprived,over65,`Village or smaller`,`Small Town`,`Medium Town`,
+         `Large Town`,`Other City`,`Core City (outside London)`,`Core City (London)`) %>% 
+  dplyr::rename(VillageOrSmaller = `Village or smaller`,
+         SmallTown = `Small Town`,
+         MediumTown = `Medium Town`,
+         LargeTown = `Large Town`,
+         OtherCity = `Other City`,
+         CoreCity = `Core City (outside London)`,
+         London = `Core City (London)`) %>% 
+  select(-VillageOrSmaller) %>% 
+  st_drop_geometry()
+model1 <- lm(con_change1~.,df1)
+summary(model1)
+
+```
+
+
+```{r}
+df2 <- df %>% 
+  select(con_change1,deprived,over65,maxurban) %>% 
+  st_drop_geometry()
+
+model2 <- lm(con_change1 ~ deprived + over65 + maxurban, df2)
+summary(model2)
+
+```
+
+```{r}
+model3 <- lm(con_change1 ~ deprived*maxurban + over65*maxurban, df2)
+summary(model3)
+```
+
+```{r, fig.width=10,fig.height=6}
+model4 <- lm(con_change1 ~ deprived*maxurban, df2)
+summary(model4)
+
+ggplot(df2) + geom_point(aes(x = deprived, y = con_change1, color = maxurban)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_smooth(aes(x = deprived, y = con_change1, color = maxurban),method="lm", se=TRUE)
+
+neighbours <- poly2nb(df, queen=T)
+weights <- nb2listw(neighbours, style="W", zero.policy = T)
+mt <- moran.test(model4$residuals,weights,zero.policy = TRUE)
+
+ggplot() + geom_sf(data=df,aes(fill=model4$residuals), lwd=0.1) + 
+  scale_fill_continuous_diverging(rev=TRUE) + 
+  labs(title = paste0("Moran's I estimate = ", round(mt$estimate,2)),
+       subtitle = paste0("Moran's I p-value = ", round(mt$p.value,3)))
+```
+
+
+```{r}
+model5 <- lm(con_change1 ~ over65 + deprived*maxurban, df2)
+summary(model5)
+```
+
+
+```{r}
+# make adjacency list for COUNTIES
+# counties_complex <- readRDS(here::here("data", "counties.rds")) %>% 
+#   filter(county != "Isle of Wight") %>% 
+#   mutate(county = factor(county))
+# 
+# 
+# counties1 <- counties %>% filter(county != "Isle of Wight")
+# counties1$county <- factor(counties1$county)
+# 
+# nlist <- counties_complex %>% st_touches()
+# names(nlist) <- counties_complex$county
+# df$county <- factor(df$county)
+
+###
+
+# make adjacency list for CONSTITUENCIES
+dfx <- all_elections %>% 
+  mutate(con_change1 = 100*(con_19 - con_17) / (100 - con_17),
+         lab_change1 = 100*(lab_19 - lab_17) / (100 - lab_17),
+         ld_change1 = 100*(ld_19 - ld_17) / (100 - ld_17)) %>% 
+  filter(!is.na(con_change1)) %>% 
+  filter(country != "Scotland") %>%
+  mutate(over65 = age_65_to_74 + age_75_to_84 + age_85_to_89 + age_90_plus,
+         low_qual = qual_none + qual_level_1,
+         deprived = deprived_2 + deprived_3 + deprived_4,
+         student = economically_inactive_student,
+         leave_EU = leave_hanretty,
+         log_density = log(population_density),
+         born_elsewhere = born_ireland + born_other_eu + born_other_pre_2004_eu + born_post_2004_eu + born_other,
+         density = population_density, 
+         con_flip = factor(ifelse(winner_19 == "Conservative" & winner_17 != "Conservative", "Yes", "No"))) %>% 
+  subset(county != "Isle of Wight") %>% 
+  mutate(county = factor(county)) %>% 
+  st_drop_geometry() %>% 
+  left_join(constituency_polygons,by = c("ons_const_id" = "pcon19cd")) %>% 
+  st_as_sf()
+dfx$constituency_name <- factor(dfx$constituency_name)
+# contiguity list
+nlist2 <- dfx %>% st_touches()
+names(nlist2) <- levels(dfx$constituency_name)
+df$constituency_name <- factor(df$constituency_name)
+
+###
+```
+
+```{r, fig.width=8, fig.height=8}
+
+model6 <- gam(con_change1 ~ over65 + deprived*maxurban +
+                 s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=460),
+               data=df, family=gaussian, method='REML')
+summary(model6)
+
+mt <- moran.test(model6$residuals,weights,zero.policy = TRUE)
+
+ggplot() + geom_sf(data=df,aes(fill=model6$residuals), lwd=0.1) + 
+  scale_fill_continuous_diverging(rev=TRUE) + 
+  labs(title = paste0("Moran's I estimate = ", round(mt$estimate,2)),
+       subtitle = paste0("Moran's I p-value = ", round(mt$p.value,3)))
+
+
+
+```
+
+
+```{r, fig.width=8, fig.height=8}
+df4 <- df %>% 
+  select(constituency_name,con_change1,deprived,over65,`Village or smaller`,`Small Town`,`Medium Town`,`Large Town`,`Other City`,`Core City (outside London)`,`Core City (London)`) %>% 
+  rename(VillageOrSmaller = `Village or smaller`,
+         SmallTown = `Small Town`,
+         MediumTown = `Medium Town`,
+         LargeTown = `Large Town`,
+         OtherCity = `Other City`,
+         CoreCity = `Core City (outside London)`,
+         London = `Core City (London)`)
+
+model7 <- gam(con_change1 ~ over65 + deprived + SmallTown + MediumTown + LargeTown + OtherCity + 
+                CoreCity + London + 
+                 s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+               data=df4, family=gaussian, method='REML')
+summary(model7)
+
+mt <- moran.test(model7$residuals,weights,zero.policy = TRUE)
+
+ggplot() + geom_sf(data=df4,aes(fill=model7$residuals), lwd=0.1) + 
+  scale_fill_continuous_diverging(rev=TRUE) + 
+  labs(title = paste0("Moran's I estimate = ", round(mt$estimate,2)),
+       subtitle = paste0("Moran's I p-value = ", round(mt$p.value,3)))
+
+
+
+```
+
+
+```{r, fig.width=12, fig.height=8}
+
+model8 <- gam(con_change1 ~ deprived*SmallTown + deprived*MediumTown + deprived*LargeTown + deprived*OtherCity + 
+                deprived*CoreCity + deprived*London + 
+                 s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+               data=df4, family=gaussian, method='REML')
+
+summary(model8)
+
+mt <- moran.test(model8$residuals,weights,zero.policy = TRUE)
+
+ggplot() + geom_sf(data=df4,aes(fill=model7$residuals), lwd=0.1) + 
+  scale_fill_continuous_diverging(rev=TRUE) + 
+  labs(title = paste0("Moran's I estimate = ", round(mt$estimate,2)),
+       subtitle = paste0("Moran's I p-value = ", round(mt$p.value,3)))
+
+model8df <- as.data.frame(coef(model8))
+mod8df <- tibble(intercept = rep(model8df[1,],6),
+                 slope = rep(model8df[2,],6),
+                 xintercept = model8df[3:8,],
+                 xslope = model8df[9:14,],
+                 newintercept = intercept + xintercept,
+                 newslope = slope + xslope,
+                 categ = c("SmallTown", "MediumTown", "LargeTown", "OtherCity", 
+                "CoreCity", "London"))
+
+mod8df$categ <- factor(mod8df$categ, levels = c("SmallTown", "MediumTown", "LargeTown", "OtherCity", 
+                "CoreCity", "London"))
+
+ggplot() + 
+  geom_point(data=df2, aes(x=deprived, y=con_change1)) + 
+  geom_abline(data=mod8df, aes(intercept = newintercept, slope = newslope, colour = categ)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5)
+
+```
+
+
+```{r}
+# m1_lmer <- lmer(con_change1 ~ over65 + deprived +
+#                     (1 | maxurban) + (0 + deprived | maxurban),
+#                 data = df2)
+# summary(m1_lmer)
+# 
+# m1_gam <- gam(con_change1 ~ over65 + deprived +
+#                   s(maxurban, bs = 're') +
+#                   s(maxurban, deprived, bs = 're'),
+#               data = df2, method = 'REML')
+# summary(m1_gam)
+```
+
+## FIXED SLOPE, RANDOM INTERCEPT 
+
+
+```{r, fig.width=12, fig.height=8}
+
+# FIXED SLOPE, RANDOM INTERCEPT
+
+# m2_lmer <- lmer(con_change1 ~ over65 + deprived +
+#                     (1 | maxurban),
+#                 data = df2)
+# summary(m2_lmer)
+
+
+# using GAM for mixed effects type models, and also for spatial correlation
+m2_gam <- gam(con_change1 ~ over65 + deprived +
+                  s(deprived,maxurban, bs = 're') + # re meaning random effect
+                 s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+              data = df, method = 'REML')
+summary(m2_gam)
+
+mt <- moran.test(m2_gam$residuals,weights,zero.policy = TRUE)
+
+ggplot() + geom_sf(data=df4,aes(fill=m2_gam$residuals), lwd=0.1) + 
+  scale_fill_continuous_diverging(rev=TRUE) + 
+  labs(title = paste0("Moran's I estimate = ", round(mt$estimate,2)),
+       subtitle = paste0("Moran's I p-value = ", round(mt$p.value,3)))
+
+
+modelm2_gamdf <- as.data.frame(coef(m2_gam))
+m2_gamdf <- tibble(intercept = rep(modelm2_gamdf[1,],7),
+                 slopeover65 = rep(modelm2_gamdf[2,],7),
+                 slopedeprived = rep(modelm2_gamdf[3,],7),
+                 xslopedperived = modelm2_gamdf[4:10,],
+                 newslope = slopedeprived + xslopedperived,
+                 categ = c("VillageOrSmaller", "SmallTown", "MediumTown", "LargeTown", "OtherCity", 
+                "CoreCity", "London"))
+m2_gamdf$categ <- factor(m2_gamdf$categ, levels = c("VillageOrSmaller", "SmallTown", "MediumTown", "LargeTown", "OtherCity", 
+                "CoreCity", "London"))
+ggplot() + 
+  geom_point(data=df2, aes(x=deprived, y=con_change1)) + 
+  geom_abline(data=m2_gamdf, aes(intercept = intercept, slope = newslope, colour = categ)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5)
+```
+
+## RANDOM SLOPE, RANDOM INTERCEPT 
+
+```{r, fig.width=12, fig.height=8}
+
+# RANDOM SLOPE, RANDOM INTERCEPT
+
+# using GAM for mixed effects type models, and also for spatial correlation
+m2_gam1 <- gam(con_change1 ~ over65 + deprived + 
+                s(maxurban, bs = 're') +
+                  s(deprived,maxurban, bs = 're') + # re meaning random effect
+                 s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+              data = df, method = 'REML')
+summary(m2_gam1)
+
+mt <- moran.test(m2_gam1$residuals,weights,zero.policy = TRUE)
+
+ggplot() + geom_sf(data=df4,aes(fill=m2_gam1$residuals), lwd=0.1) + 
+  scale_fill_continuous_diverging(rev=TRUE) + 
+  labs(title = paste0("Moran's I estimate = ", round(mt$estimate,2)),
+       subtitle = paste0("Moran's I p-value = ", round(mt$p.value,3)))
+
+
+modelm2_gam1df <- as.data.frame(coef(m2_gam1))
+m2_gam1df <- tibble(intercept = rep(modelm2_gam1df[1,],7),
+                 slopeover65 = rep(modelm2_gam1df[2,],7),
+                 slopedeprived = rep(modelm2_gam1df[3,],7),
+                 xintercept = modelm2_gam1df[4:10,],
+                 xslopedperived = modelm2_gam1df[11:17,],
+                 newitercept = intercept + xintercept,
+                 newslope = slopedeprived + xslopedperived,
+                 categ = c("VillageOrSmaller", "SmallTown", "MediumTown", "LargeTown", "OtherCity", 
+                "CoreCity", "London"))
+m2_gam1df$categ <- factor(m2_gam1df$categ, levels = c("VillageOrSmaller", "SmallTown", "MediumTown", "LargeTown", "OtherCity", 
+                "CoreCity", "London"))
+ggplot() + 
+  geom_point(data=df2, aes(x=deprived, y=con_change1)) + 
+  geom_abline(data=m2_gam1df, aes(intercept = newitercept, slope = newslope, colour = categ)) + 
+  scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5)
+```
+
+## RANDOM SLOPE, RANDOM INTERCEPT, DEPRIVED NOT LINEAR
+
+```{r, fig.width=8, fig.height=8}
+
+# RANDOM SLOPE, RANDOM INTERCEPT
+
+# using GAM for mixed effects type models, and also for spatial correlation
+# model10 <- gam(con_change1 ~ s(over65,bs="cr") + s(deprived,bs="cr") + 
+#                 s(maxurban, bs = 're') +
+#                   s(deprived,maxurban, bs = 're') + # re meaning random effect
+#                  s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+#               data = df, method = 'REML')
+# summary(model10)
+# plot(model10,pages=1,residuals=TRUE,all.terms=TRUE,shade=TRUE,shade.col=4)
+
+
+model10 <- gam(con_change1 ~ over65 + s(deprived,bs="cr",by=maxurban, k=5) + 
+               s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+              data = df, method = 'REML')
+
+mt <- moran.test(model10$residuals,weights,zero.policy = TRUE)
+
+ggplot() + geom_sf(data=df4,aes(fill=model10$residuals), lwd=0.1) + 
+  scale_fill_continuous_diverging(rev=TRUE) + 
+  labs(title = paste0("Moran's I estimate = ", round(mt$estimate,2)),
+       subtitle = paste0("Moran's I p-value = ", round(mt$p.value,3)))
+
+
+summary(model10)
+plot(model10,pages=1,residuals=TRUE,all.terms=TRUE,shade=TRUE,shade.col=4)
+
+
+```
+
+```{r}
+model11 <- lm(con_change1 ~ over65 + deprived*maxurban + I(deprived^2)*maxurban+ I(deprived^3)*maxurban, data=df)
+summary(model11)
+
+coefs <- as.vector(coef(model11)[c(3,10:22)],)
+
+depscale <- tibble(value = seq(min(df$deprived),max(df$deprived),length.out=300))
+# depscale$smalltown <- model11$coefficients[1] + model11$coefficients[4] + (depscale$value * (coefs[1] + coefs[3])) + (depscale$value^2 * (coefs[2] + coefs[9]))
+# depscale$mediumtown <- model11$coefficients[1] + model11$coefficients[5] + (depscale$value * (coefs[1] + coefs[4])) + (depscale$value^2 * (coefs[2] + coefs[10]))
+# depscale$largetown <- model11$coefficients[1] + model11$coefficients[6] + (depscale$value * (coefs[1] + coefs[5])) + (depscale$value^2 * (coefs[2] + coefs[11]))
+# depscale$othercity <- model11$coefficients[1] + model11$coefficients[7] + (depscale$value * (coefs[1] + coefs[6])) + (depscale$value^2 * (coefs[2] + coefs[12]))
+# depscale$corecity <- model11$coefficients[1] + model11$coefficients[8] + (depscale$value * (coefs[1] + coefs[7])) + (depscale$value^2 * (coefs[2] + coefs[13]))
+# depscale$london <- model11$coefficients[1] + model11$coefficients[9] + (depscale$value * (coefs[1] + coefs[8])) + (depscale$value^2 * (coefs[2] + coefs[14]))
+# 
+# ggplot(depscale) + geom_point(aes(x=value, y=smalltown))
+# ggplot(depscale) + geom_point(aes(x=value, y=mediumtown))
+# ggplot(depscale) + geom_point(aes(x=value, y=largetown))
+# ggplot(depscale) + geom_point(aes(x=value, y=othercity))
+# ggplot(depscale) + geom_point(aes(x=value, y=corecity))
+# ggplot(depscale) + geom_point(aes(x=value, y=london))
+
+ppp <- predict(model11,df)
+df$prediction <- ppp
+
+ggplot(df)+geom_line((aes(x=deprived,y=con_change1)))+facet_wrap(~maxurban)
+
+ggplot(df)+geom_line((aes(x=deprived,y=df$prediction)))+facet_wrap(~maxurban)
+
+ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm",formula=y ~ poly(x, 3, raw=TRUE))
+
+```
+
+```{r, fig.width=12, fig.height=8}
+
+# not controlling for over65
+ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm",formula=y ~ poly(x, 2, raw=TRUE)) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5)
+ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm",formula=y ~ poly(x, 3, raw=TRUE)) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5)
+ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1), method="lm",formula=y ~ poly(x, 2, raw=TRUE)) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  facet_wrap(~maxurban)
+ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1), method="lm",formula=y ~ poly(x, 3, raw=TRUE)) + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  facet_wrap(~maxurban)
+
+# controlling for over65
+model11 <- lm(con_change1 ~ over65 + deprived*maxurban + I(deprived^2)*maxurban, data=df)
+summary(model11)
+
+model12 <- lm(con_change1 ~ over65 + deprived*maxurban + I(deprived^2)*maxurban+ I(deprived^3)*maxurban, data=df)
+summary(model12)
+
+# function to plot models by maxurban
+plotmodel <- function(model){
+smalltown <- tibble(deprived = seq(min(df$deprived),max(df$deprived),length.out=sum(df$maxurban=="Small Town")),
+                       over65 = rep(mean(df$over65,sum(df$maxurban=="Small Town"))),
+                       maxurban = "Small Town")
+smalltown$prediction =predict(model,smalltown)
+pp1 <- ggplot(smalltown)+geom_point(aes(x=deprived,y=prediction)) + 
+  labs(title="Small Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-30,30)
+
+mediumtown <- tibble(deprived = seq(min(df$deprived),max(df$deprived),length.out=sum(df$maxurban=="Medium Town")),
+                       over65 = rep(mean(df$over65,sum(df$maxurban=="Medium Town"))),
+                       maxurban = "Medium Town")
+mediumtown$prediction =predict(model,mediumtown)
+pp2 <- ggplot(mediumtown)+geom_point(aes(x=deprived,y=prediction)) + 
+  labs(title="Medium Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-30,30)
+
+largetown <- tibble(deprived = seq(min(df$deprived),max(df$deprived),length.out=sum(df$maxurban=="Large Town")),
+                       over65 = rep(mean(df$over65,sum(df$maxurban=="Large Town"))),
+                       maxurban = "Large Town")
+largetown$prediction =predict(model,largetown)
+pp3 <- ggplot(largetown)+geom_point(aes(x=deprived,y=prediction)) + 
+  labs(title="Large Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-30,30)
+
+othercity <- tibble(deprived = seq(min(df$deprived),max(df$deprived),length.out=sum(df$maxurban=="Other City")),
+                       over65 = rep(mean(df$over65,sum(df$maxurban=="Other City"))),
+                       maxurban = "Other City")
+othercity$prediction =predict(model,othercity)
+pp4 <- ggplot(othercity)+geom_point(aes(x=deprived,y=prediction)) + 
+  labs(title="Other City") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-30,30)
+
+corecity <- tibble(deprived = seq(min(df$deprived),max(df$deprived),length.out=sum(df$maxurban=="Core City (outside London)")),
+                       over65 = rep(mean(df$over65,sum(df$maxurban=="Core City (outside London)"))),
+                       maxurban = "Core City (outside London)")
+corecity$prediction =predict(model,corecity)
+pp5 <- ggplot(corecity)+geom_point(aes(x=deprived,y=prediction)) + 
+  labs(title="Core City (outside London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-30,30)
+
+london <- tibble(deprived = seq(min(df$deprived),max(df$deprived),length.out=sum(df$maxurban=="Core City (London)")),
+                       over65 = rep(mean(df$over65,sum(df$maxurban=="Core City (London)"))),
+                       maxurban = "Core City (London)")
+london$prediction =predict(model,london)
+pp6 <- ggplot(london)+geom_point(aes(x=deprived,y=prediction)) + 
+  labs(title="Core City (London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-30,30)
+
+(pp1+pp2+pp3) / (pp4+pp5+pp6)
+}
+
+```
+
+
+## quadratic model 
+
+
+```{r, fig.width=12, fig.height=8}
+
+# quadratic model
+plotmodel(model11)
+
+```
+
+
+## cubic model 
+
+
+```{r, fig.width=12, fig.height=8}
+
+# cubic model
+
+plotmodel(model12)
+
+```
+
+## with spatial control 
+
+
+```{r, fig.width=12, fig.height=8}
+# with spatial control
+model13 <- gam(con_change1 ~ over65 + deprived*maxurban + I(deprived^2)*maxurban+ I(deprived^3)*maxurban + 
+               s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+              data = df, method = 'REML')
+summary(model13)
+
+pred13 <- predict(model13,df)
+df13 <- cbind(df,pred13)
+gp1 <- ggplot(df13 %>% filter(maxurban=="Small Town"))+geom_point(aes(x=deprived,y=pred13)) + 
+  labs(title="Small Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+gp2 <- ggplot(df13 %>% filter(maxurban=="Medium Town"))+geom_point(aes(x=deprived,y=pred13)) + 
+  labs(title="Medium Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+gp3 <- ggplot(df13 %>% filter(maxurban=="Large Town"))+geom_point(aes(x=deprived,y=pred13)) + 
+  labs(title="Large Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+gp4 <- ggplot(df13 %>% filter(maxurban=="Other City"))+geom_point(aes(x=deprived,y=pred13)) + 
+  labs(title="Other City") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+gp5 <- ggplot(df13 %>% filter(maxurban=="Core City (outside London)"))+geom_point(aes(x=deprived,y=pred13)) + 
+  labs(title="Core City (outside London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+gp6 <- ggplot(df13 %>% filter(maxurban=="Core City (London)"))+geom_point(aes(x=deprived,y=pred13)) + 
+  labs(title="Core City (London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+
+(gp1+gp2+gp3) / (gp4+gp5+gp6)
+
+```
+
+
+## with credible intervals 
+
+
+```{r, fig.width=12, fig.height=8}
+
+# with credible intervals
+
+p <- predict(model13, df, type = "link", se.fit = TRUE)
+
+upr <- p$fit + (1.96 * p$se.fit)
+lwr <- p$fit - (1.96 * p$se.fit)
+
+# In the GAM, you need to form the confidence interval on the scale of the linear predictor and then transform that to the scale of the response by applying the inverse of the link function:
+upr <- model13$family$linkinv(upr)
+lwr <- model13$family$linkinv(lwr)
+
+df13.1 <- cbind(df,p$fit,upr,lwr)
+
+sgp1 <- ggplot(df13.1 %>% filter(maxurban=="Small Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Small Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+sgp2 <- ggplot(df13.1 %>% filter(maxurban=="Medium Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Medium Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+sgp3 <- ggplot(df13.1 %>% filter(maxurban=="Large Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Large Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+sgp4 <- ggplot(df13.1 %>% filter(maxurban=="Other City"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Other City") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+sgp5 <- ggplot(df13.1 %>% filter(maxurban=="Core City (outside London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Core City (outside London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+sgp6 <- ggplot(df13.1 %>% filter(maxurban=="Core City (London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Core City (London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+
+(sgp1+sgp2+sgp3) / (sgp4+sgp5+sgp6)
+
+```
+
+
+## only including credible intervals either above or below zero 
+
+
+```{r, fig.width=12, fig.height=8}
+
+# only including credible intervals either above or below zero
+
+df13.2 <- cbind(df,p$fit,upr,lwr) %>% 
+  filter(upr < 0 | lwr > 0)
+
+ssgp1 <- ggplot(df13.2 %>% filter(maxurban=="Small Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Small Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+ssgp2 <- ggplot(df13.2 %>% filter(maxurban=="Medium Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Medium Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+ssgp3 <- ggplot(df13.2 %>% filter(maxurban=="Large Town"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Large Town") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+ssgp4 <- ggplot(df13.2 %>% filter(maxurban=="Other City"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Other City") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+ssgp5 <- ggplot(df13.2 %>% filter(maxurban=="Core City (outside London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Core City (outside London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+ssgp6 <- ggplot(df13.2 %>% filter(maxurban=="Core City (London)"),aes(x=deprived,y=p.fit,ymin = lwr, ymax = upr)) + 
+  geom_errorbar(position = position_dodge(width = 0.2), width = 0.1, colour="orange") + 
+  geom_point(colour="darkblue") +
+  labs(title="Core City (London)") + 
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  ylim(-20,25)
+
+(ssgp1+ssgp2+ssgp3) / (ssgp4+ssgp5+ssgp6)
+```
+
+
+
+
+
+
+
+
+
+
