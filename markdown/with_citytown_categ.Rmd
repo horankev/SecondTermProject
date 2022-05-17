@@ -155,28 +155,34 @@ p1 <- ggplot(df) + geom_point(aes(x=deprived,y=con_19,colour=maxurban)) +
   geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
   annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 p2 <- ggplot(df) + geom_point(aes(x=deprived,y=con_change1,colour=maxurban)) + 
   scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) + 
   annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 p3 <- ggplot(df) + geom_point(aes(x=over65,y=con_19,colour=maxurban)) + 
   scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
   geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
   annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$over65)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$over65)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 p4 <- ggplot(df) + geom_point(aes(x=over65,y=con_change1,colour=maxurban)) + 
   scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
   annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+  geom_vline(xintercept = quantile(df$over65)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$over65)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 ggarrange(p1,p2,
           ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
@@ -191,28 +197,34 @@ p5 <- ggplot(df) + geom_smooth(aes(x=deprived,y=con_19,colour=maxurban), se = FA
   geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
   annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 p6 <- ggplot(df) + geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), se = FALSE) + 
   scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) + 
   annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 p7 <- ggplot(df) + geom_smooth(aes(x=over65,y=con_19,colour=maxurban), se = FALSE) + 
   scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
   geom_hline(yintercept = median(df$con_19), colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
   annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label")
+  annotate(x=+Inf,y=median(df$con_19),label="Median",hjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$over65)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$over65)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 p8 <- ggplot(df) + geom_smooth(aes(x=over65,y=con_change1,colour=maxurban), se = FALSE) + 
   scale_colour_discrete_sequential(palette="Inferno", rev=TRUE) + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
   geom_vline(xintercept = median(df$over65), colour="darkgreen", lwd=1.5) + 
   annotate(x=median(df$over65),y=+Inf,label="Median",vjust=2,geom="label") +
-  annotate(x=+Inf,y=0,label="Median",hjust=2,geom="label")
+  geom_vline(xintercept = quantile(df$over65)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$over65)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 ggarrange(p5,p6,
           ncol=2, nrow=1, common.legend = TRUE, legend="right")
