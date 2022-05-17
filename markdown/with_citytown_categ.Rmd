@@ -588,15 +588,31 @@ ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm
 
 # not controlling for over65
 ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm",formula=y ~ poly(x, 2, raw=TRUE)) + 
-  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5)
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1,colour=maxurban), method="lm",formula=y ~ poly(x, 3, raw=TRUE)) + 
-  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5)
+  geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1), method="lm",formula=y ~ poly(x, 2, raw=TRUE)) + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  facet_wrap(~maxurban)
+  facet_wrap(~maxurban) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 ggplot(df)+geom_smooth(aes(x=deprived,y=con_change1), method="lm",formula=y ~ poly(x, 3, raw=TRUE)) + 
   geom_hline(yintercept = 0, colour="darkgreen", lwd=1.5) + 
-  facet_wrap(~maxurban)
+  facet_wrap(~maxurban) + 
+  geom_vline(xintercept = median(df$deprived), colour="darkgreen", lwd=1.5) +
+  annotate(x=median(df$deprived),y=+Inf,label="Median",vjust=2,geom="label") + 
+  geom_vline(xintercept = quantile(df$deprived)[2], colour="darkgreen", lwd=0.5, linetype="dashed") +
+  geom_vline(xintercept = quantile(df$deprived)[4], colour="darkgreen", lwd=0.5, linetype="dashed")
 
 # controlling for over65
 model11 <- lm(con_change1 ~ over65 + deprived*maxurban + I(deprived^2)*maxurban, data=df)
