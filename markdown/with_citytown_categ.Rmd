@@ -119,7 +119,7 @@ wmeans <- readRDS(here::here("data","wmeans.RDS"))
 ```
 
 
-### Introduce urban categorisation of each constituency 
+## Introduce urban categorisation of each constituency 
 
 #### from House of Commons Library 
 
@@ -337,6 +337,39 @@ ggarrange(p5,p6,
 ggarrange(p7,p8,
           ncol=2, nrow=1, common.legend = TRUE, legend="right")
 ```
+
+
+---
+
+
+## Building Models: 
+
+### Issues 
+
+* include over65 or not? 
+
+* maxurban or percentage of each category? 
+
+* with or without interactions? 
+
+* with spatial smoothing? 
+
+* linear, quadratic or cubic for deprived? 
+
+* cubic spline or with I(deprived^3)? 
+
+---
+
+
+### Do the marginal effects of deprived change according to 
+
+* level of deprivation? 
+
+* urban category? 
+
+---
+
+
 
 
 ### Model 1 
