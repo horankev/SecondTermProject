@@ -1544,6 +1544,42 @@ ggplot(comparison2, aes(x=deprived,y=maxurban)) + geom_tile(aes(fill=slopecat)) 
 
 ```
 
+ 
+ 
+#### Furthermore, tried including longitude and latitude of centroids to see if the effect of deprived on con_change1 changed. 
+#### Although have already taking into account neighbourhood effects with the spatial smoothing GAM...? 
+
+ 
+ 
+ 
+#### These coordinates raise the Adj.R-sqrd. to 70.5%, and show that: 
+* while moving further north is associated with higher values of con_change1, 
+* an increase in deprivation reduces this effect as you move north, 
+* similarly, while moving further west is associated with higher values of con_change1, 
+* an increase in deprivation reduces this effect as you move west.
+
+
+
+```{r}
+
+model13a <- gam(con_change1 ~ over65 + deprived*lat + deprived*long + deprived*maxurban + I(deprived^2)*maxurban+ I(deprived^3)*maxurban + 
+               s(constituency_name,bs='mrf',xt=list(nb=nlist2),k=300),
+              data = df, method = 'REML')
+summary(model13a)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
